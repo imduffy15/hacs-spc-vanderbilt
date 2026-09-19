@@ -1,0 +1,93 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to your Vanderbilt SPC panel",
+        "description": "The panel dials in to Home Assistant over the EDP protocol; it does not work the other way around. Configure the panel under Communications \u2192 Reporting \u2192 EDP to point at this host, using the receiver id and port below.",
+        "data": {
+          "receiver_id": "Receiver ID",
+          "port": "Listen port",
+          "bind": "Bind address",
+          "encryption_key": "EDP encryption key (32 hex digits, optional)"
+        },
+        "data_description": {
+          "receiver_id": "Must match the Receiver ID configured on the panel's EDP entry.",
+          "port": "The TCP port Home Assistant will listen on for the panel to dial in to.",
+          "bind": "The local address to bind the listener to. Use 0.0.0.0 to accept connections on any interface.",
+          "encryption_key": "Leave blank if EDP encryption is disabled on the panel."
+        }
+      },
+      "reconfigure": {
+        "title": "Update your Vanderbilt SPC panel connection",
+        "description": "Changing the port or bind address will restart the listener; the panel must already be configured to redial the new address.",
+        "data": {
+          "receiver_id": "Receiver ID",
+          "port": "Listen port",
+          "bind": "Bind address",
+          "encryption_key": "EDP encryption key (32 hex digits, optional)"
+        }
+      }
+    },
+    "error": {
+      "invalid_receiver_id": "Receiver ID must be a whole number between 0 and 65535.",
+      "invalid_port": "Port must be between 1 and 65535.",
+      "invalid_encryption_key": "The encryption key must be exactly 32 hex digits (16 bytes), or left blank.",
+      "cannot_bind": "Could not bind to that address and port. It may already be in use."
+    },
+    "abort": {
+      "already_configured": "A receiver is already configured for that bind address and port.",
+      "reconfigure_successful": "The connection settings were updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Vanderbilt SPC (EDP) options",
+        "data": {
+          "idle_timeout": "Idle timeout (seconds)",
+          "aux_refresh_interval": "Output/door poll interval (seconds)",
+          "area_refresh_interval": "Area/zone reconciliation interval (seconds)"
+        },
+        "data_description": {
+          "idle_timeout": "Disconnect the panel if it sends nothing for this long. The panel typically polls every ~10 seconds.",
+          "aux_refresh_interval": "Outputs and doors have no push notifications, so they are polled on this interval.",
+          "area_refresh_interval": "A slower full re-sync of areas/zones to correct for any drift not covered by pushed events."
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "bell_silence": { "name": "Silence bell" },
+      "alert_restore": { "name": "Restore alert" },
+      "audio_play": { "name": "Play audio" },
+      "test": { "name": "Panel self-test" },
+      "reset": { "name": "Panel reset" },
+      "door_inhibit": { "name": "Inhibit" },
+      "door_deinhibit": { "name": "Deinhibit" },
+      "door_isolate": { "name": "Isolate" },
+      "door_deisolate": { "name": "Deisolate" },
+      "door_set_normal_mode": { "name": "Set normal mode" },
+      "zone_inhibit": { "name": "Inhibit zone" },
+      "zone_deinhibit": { "name": "Deinhibit zone" },
+      "zone_isolate": { "name": "Isolate zone" },
+      "zone_deisolate": { "name": "Deisolate zone" }
+    },
+    "sensor": {
+      "last_event": { "name": "Last event" }
+    }
+  },
+  "events": {
+    "spc_edp_sia_event": {
+      "name": "SIA event",
+      "trigger_type": {
+        "alarm": "Alarm",
+        "restore": "Restore",
+        "trouble": "Trouble",
+        "access": "Access",
+        "test": "Test",
+        "unknown": "Unknown"
+      }
+    }
+  }
+}

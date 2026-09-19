@@ -1,0 +1,53 @@
+"""Constants for the Vanderbilt SPC (EDP) integration."""
+
+from __future__ import annotations
+
+from datetime import timedelta
+
+DOMAIN = "spc_edp"
+MANUFACTURER = "Vanderbilt (Siemens)"
+
+# --- Config entry data keys (immutable, set once via config flow) ----------
+CONF_RECEIVER_ID = "receiver_id"
+CONF_BIND = "bind"
+CONF_PORT = "port"
+CONF_ENCRYPTION_KEY = "encryption_key"
+CONF_PANEL_ID = "panel_id"
+
+# --- Config entry option keys (tunable after setup) -------------------------
+CONF_IDLE_TIMEOUT = "idle_timeout"
+CONF_AREA_REFRESH_INTERVAL = "area_refresh_interval"
+CONF_AUX_REFRESH_INTERVAL = "aux_refresh_interval"
+
+DEFAULT_BIND = "0.0.0.0"
+DEFAULT_PORT = 50000
+DEFAULT_IDLE_TIMEOUT = 120
+# EDP event reporting can be selectively disabled at the panel. A 30-second
+# zone refresh is the lowest interval exposed by the options flow and keeps
+# physical state current even when the panel does not publish SIA ZO/ZC events.
+DEFAULT_AREA_REFRESH_INTERVAL = 30  # seconds; reconciles event drift/fallback
+DEFAULT_AUX_REFRESH_INTERVAL = 30  # seconds; outputs/doors have no SIA push
+
+MIN_PORT = 1
+MAX_PORT = 65535
+MIN_RECEIVER_ID = 0
+MAX_RECEIVER_ID = 65535
+
+AREA_REFRESH_INTERVAL = timedelta(seconds=DEFAULT_AREA_REFRESH_INTERVAL)
+AUX_REFRESH_INTERVAL = timedelta(seconds=DEFAULT_AUX_REFRESH_INTERVAL)
+
+# --- Dispatcher signals ------------------------------------------------------
+SIGNAL_AVAILABILITY = "spc_edp_availability_{}"
+SIGNAL_UPDATE_AREA = "spc_edp_update_area_{}_{}"
+SIGNAL_UPDATE_ZONE = "spc_edp_update_zone_{}_{}"
+SIGNAL_UPDATE_OUTPUT = "spc_edp_update_output_{}_{}"
+SIGNAL_UPDATE_DOOR = "spc_edp_update_door_{}_{}"
+SIGNAL_NEW_AREAS = "spc_edp_new_areas_{}"
+SIGNAL_NEW_ZONES = "spc_edp_new_zones_{}"
+SIGNAL_NEW_OUTPUTS = "spc_edp_new_outputs_{}"
+SIGNAL_NEW_DOORS = "spc_edp_new_doors_{}"
+
+# --- Event bus event fired for every SIA push (for automations/history) ----
+EVENT_SIA = "spc_edp_sia_event"
+
+PLATFORMS_ALL_AREA_REFRESH = "areas_zones"
