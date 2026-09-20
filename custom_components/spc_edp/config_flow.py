@@ -25,14 +25,12 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     CONF_AREA_REFRESH_INTERVAL,
-    CONF_AUX_REFRESH_INTERVAL,
     CONF_BIND,
     CONF_ENCRYPTION_KEY,
     CONF_IDLE_TIMEOUT,
     CONF_PORT,
     CONF_RECEIVER_ID,
     DEFAULT_AREA_REFRESH_INTERVAL,
-    DEFAULT_AUX_REFRESH_INTERVAL,
     DEFAULT_BIND,
     DEFAULT_IDLE_TIMEOUT,
     DEFAULT_PORT,
@@ -90,11 +88,9 @@ async def _async_test_bind(bind: str, port: int) -> None:
 class SpcEdpConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Vanderbilt SPC (EDP)."""
 
-    VERSION = 2
+    VERSION = 3
 
-    async def _async_validate(
-        self, user_input: dict[str, Any]
-    ) -> dict[str, str]:
+    async def _async_validate(self, user_input: dict[str, Any]) -> dict[str, str]:
         """Validate user input, returning a dict of field -> error code."""
         errors: dict[str, str] = {}
 
@@ -201,14 +197,6 @@ class SpcEdpOptionsFlow(OptionsFlow):
                     default=options.get(CONF_IDLE_TIMEOUT, DEFAULT_IDLE_TIMEOUT),
                 ): NumberSelector(
                     NumberSelectorConfig(min=30, max=600, mode=NumberSelectorMode.BOX)
-                ),
-                vol.Required(
-                    CONF_AUX_REFRESH_INTERVAL,
-                    default=options.get(
-                        CONF_AUX_REFRESH_INTERVAL, DEFAULT_AUX_REFRESH_INTERVAL
-                    ),
-                ): NumberSelector(
-                    NumberSelectorConfig(min=10, max=3600, mode=NumberSelectorMode.BOX)
                 ),
                 vol.Required(
                     CONF_AREA_REFRESH_INTERVAL,

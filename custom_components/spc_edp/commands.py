@@ -50,5 +50,7 @@ async def async_run_command(
         await operation
     except PanelRejected as error:
         raise HomeAssistantError(
-            _rejection_message(error, action, engineer_mode_possible=engineer_mode_possible)
+            _rejection_message(
+                error, action, engineer_mode_possible=engineer_mode_possible
+            )
         ) from error

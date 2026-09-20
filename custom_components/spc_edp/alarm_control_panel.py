@@ -104,19 +104,6 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity):
             return None
         return _MODE_TO_STATE.get(mode)
 
-    @property
-    def extra_state_attributes(self) -> dict[str, str] | None:
-        """Expose raw diagnostic fields the panel does not otherwise surface."""
-        area = self._area
-        if area is None:
-            return None
-        return {
-            "last_set_time": area.last_set_time,
-            "last_unset_time": area.last_unset_time,
-            "last_alarm": area.last_alarm,
-            "not_ready_set": area.not_ready_set,
-        }
-
     async def async_added_to_hass(self) -> None:
         """Subscribe to area-specific + availability updates."""
         await super().async_added_to_hass()

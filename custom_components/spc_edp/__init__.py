@@ -22,11 +22,6 @@ from .hub import SpcEdpHub
 PLATFORMS: list[Platform] = [
     Platform.ALARM_CONTROL_PANEL,
     Platform.BINARY_SENSOR,
-    Platform.BUTTON,
-    Platform.EVENT,
-    Platform.LOCK,
-    Platform.SENSOR,
-    Platform.SWITCH,
 ]
 
 type SpcEdpConfigEntry = ConfigEntry[SpcEdpHub]
@@ -49,7 +44,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     familiar names. Only registry unique ids and the physical-device
     identifier change from ``bind:port`` to the decimal panel id.
     """
-    if entry.version > 2:
+    if entry.version > 3:
         return False
     if entry.version < 2:
         old_identity = entry.unique_id or f"{entry.data['bind']}:{entry.data['port']}"
@@ -69,6 +64,22 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # Retain an established address identity for unusual panels whose
             # serial cannot safely be converted to a device id.
             hass.config_entries.async_update_entry(entry, version=2)
+
+    if entry.version < 3:
+        entity_registry = er.async_get(hass)
+        for entity in list(entity_registry.entities.values()):
+            if entity.config_entry_id != entry.entry_id:
+                continue
+            domain = entity.entity_id.partition(".")[0]
+            _, marker, zone_id = entity.unique_id.rpartition("-zone-")
+            is_zone = (
+                domain == Platform.BINARY_SENSOR.value
+                and bool(marker)
+                and zone_id.isdigit()
+            )
+            if domain != Platform.ALARM_CONTROL_PANEL.value and not is_zone:
+                entity_registry.async_remove(entity.entity_id)
+        hass.config_entries.async_update_entry(entry, version=3)
     return True
 
 
@@ -87,9 +98,8 @@ async def _async_migrate_registry_identity(
     old_prefix = f"{old_identity}-"
     new_prefix = f"{panel_id}-"
     for entity in list(entity_registry.entities.values()):
-        if (
-            entity.config_entry_id == entry.entry_id
-            and entity.unique_id.startswith(old_prefix)
+        if entity.config_entry_id == entry.entry_id and entity.unique_id.startswith(
+            old_prefix
         ):
             entity_registry.async_update_entity(
                 entity.entity_id,

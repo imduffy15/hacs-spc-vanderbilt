@@ -45,48 +45,12 @@
         "title": "Vanderbilt SPC (EDP) options",
         "data": {
           "idle_timeout": "Idle timeout (seconds)",
-          "aux_refresh_interval": "Output/door poll interval (seconds)",
           "area_refresh_interval": "Area/zone reconciliation interval (seconds)"
         },
         "data_description": {
           "idle_timeout": "Disconnect the panel if it sends nothing for this long. The panel typically polls every ~10 seconds.",
-          "aux_refresh_interval": "Outputs and doors have no push notifications, so they are polled on this interval.",
           "area_refresh_interval": "A slower full re-sync of areas/zones to correct for any drift not covered by pushed events."
         }
-      }
-    }
-  },
-  "entity": {
-    "button": {
-      "bell_silence": { "name": "Silence bell" },
-      "alert_restore": { "name": "Restore alert" },
-      "audio_play": { "name": "Play audio" },
-      "test": { "name": "Panel self-test" },
-      "reset": { "name": "Panel reset" },
-      "door_inhibit": { "name": "Inhibit" },
-      "door_deinhibit": { "name": "Deinhibit" },
-      "door_isolate": { "name": "Isolate" },
-      "door_deisolate": { "name": "Deisolate" },
-      "door_set_normal_mode": { "name": "Set normal mode" },
-      "zone_inhibit": { "name": "Inhibit zone" },
-      "zone_deinhibit": { "name": "Deinhibit zone" },
-      "zone_isolate": { "name": "Isolate zone" },
-      "zone_deisolate": { "name": "Deisolate zone" }
-    },
-    "sensor": {
-      "last_event": { "name": "Last event" }
-    }
-  },
-  "events": {
-    "spc_edp_sia_event": {
-      "name": "SIA event",
-      "trigger_type": {
-        "alarm": "Alarm",
-        "restore": "Restore",
-        "trouble": "Trouble",
-        "access": "Access",
-        "test": "Test",
-        "unknown": "Unknown"
       }
     }
   }

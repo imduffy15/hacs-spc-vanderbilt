@@ -3,10 +3,8 @@
 Unlike most Home Assistant integrations, the SPC panel is the one that
 dials *in* to us: :class:`spcedp.PanelServer` opens a TCP listen socket and
 waits for the panel to connect, authenticate, and start polling. This hub
-wraps that lifecycle, keeps the latest :class:`spcedp.Panel` snapshot,
-reconciles state on every pushed SIA event, and runs light periodic polling
-only for the pieces of state (outputs, doors) that have no SIA push
-equivalent.
+wraps that lifecycle, keeps the latest :class:`spcedp.Panel` snapshot, and
+reconciles alarm-area and zone state on every pushed SIA event.
 """
 
 from __future__ import annotations
@@ -25,7 +23,6 @@ from spcedp import Panel, PanelServer, Session, SiaEvent, SpcError
 
 from .const import (
     CONF_AREA_REFRESH_INTERVAL,
-    CONF_AUX_REFRESH_INTERVAL,
     CONF_BIND,
     CONF_ENCRYPTION_KEY,
     CONF_IDLE_TIMEOUT,
@@ -33,21 +30,16 @@ from .const import (
     CONF_PORT,
     CONF_RECEIVER_ID,
     DEFAULT_AREA_REFRESH_INTERVAL,
-    DEFAULT_AUX_REFRESH_INTERVAL,
     DEFAULT_IDLE_TIMEOUT,
-    EVENT_SIA,
     SIGNAL_AVAILABILITY,
     SIGNAL_NEW_AREAS,
-    SIGNAL_NEW_DOORS,
-    SIGNAL_NEW_OUTPUTS,
     SIGNAL_NEW_ZONES,
     SIGNAL_UPDATE_AREA,
-    SIGNAL_UPDATE_DOOR,
-    SIGNAL_UPDATE_OUTPUT,
     SIGNAL_UPDATE_ZONE,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
 
 class SpcEdpHub:
     """Owns the PanelServer/Panel lifecycle for a single config entry."""
@@ -59,14 +51,11 @@ class SpcEdpHub:
         self.panel: Panel | None = None
         self.available = False
         self._server: PanelServer | None = None
-        self._aux_unsub: object | None = None
         self._area_unsub: object | None = None
         self._refresh_lock = asyncio.Lock()
 
         self._known_area_ids: set[int] = set()
         self._known_zone_ids: set[int] = set()
-        self._known_output_ids: set[int] = set()
-        self._known_door_ids: set[int] = set()
 
         # Live inbound EDP connections (normally exactly one: the panel).
         # Tracked so async_stop() can force them closed; see its docstring.
@@ -99,13 +88,6 @@ class SpcEdpHub:
     def idle_timeout(self) -> float:
         """Seconds of silence before a stale panel connection is dropped."""
         return self.entry.options.get(CONF_IDLE_TIMEOUT, DEFAULT_IDLE_TIMEOUT)
-
-    @property
-    def aux_refresh_interval(self) -> int:
-        """Poll interval (seconds) for outputs/doors, which have no SIA push."""
-        return self.entry.options.get(
-            CONF_AUX_REFRESH_INTERVAL, DEFAULT_AUX_REFRESH_INTERVAL
-        )
 
     @property
     def area_refresh_interval(self) -> int:
@@ -150,7 +132,6 @@ class SpcEdpHub:
         then bound the whole teardown with a timeout so a config entry
         reload/unload can never hang indefinitely on a misbehaving peer.
         """
-        self._stop_aux_refresh()
         self._stop_area_refresh()
         server, self._server = self._server, None
         if server is None:
@@ -190,7 +171,6 @@ class SpcEdpHub:
         self.available = True
         self._announce_new_entities()
         self._async_set_availability(True)
-        self._start_aux_refresh()
         self._start_area_refresh()
 
         try:
@@ -201,7 +181,6 @@ class SpcEdpHub:
         finally:
             self._active_sessions.pop(id(session), None)
             self.available = False
-            self._stop_aux_refresh()
             self._stop_area_refresh()
             self._async_set_availability(False)
             _LOGGER.warning(
@@ -216,33 +195,28 @@ class SpcEdpHub:
     def _announce_new_entities(self) -> None:
         """Diff the latest snapshot against known ids and notify platforms.
 
-        Areas/zones/outputs/doors are normally static for the lifetime of a
-        panel's configuration, but a panel re-programmed after the entry was
-        first set up can introduce new ones; this lets platforms add
-        entities for them without a full Home Assistant restart.
+        Areas and zones are normally static for the lifetime of a panel's
+        configuration, but a reprogrammed panel can introduce new ones; this
+        lets the two supported platforms add entities without a restart.
         """
         panel = self.panel
         if panel is None:
             return
         new_areas = set(panel.areas) - self._known_area_ids
         new_zones = set(panel.zones) - self._known_zone_ids
-        new_outputs = set(panel.outputs) - self._known_output_ids
-        new_doors = set(panel.doors) - self._known_door_ids
 
         self._known_area_ids |= new_areas
         self._known_zone_ids |= new_zones
-        self._known_output_ids |= new_outputs
-        self._known_door_ids |= new_doors
 
         entry_id = self.entry.entry_id
         if new_areas:
-            async_dispatcher_send(self.hass, SIGNAL_NEW_AREAS.format(entry_id), new_areas)
+            async_dispatcher_send(
+                self.hass, SIGNAL_NEW_AREAS.format(entry_id), new_areas
+            )
         if new_zones:
-            async_dispatcher_send(self.hass, SIGNAL_NEW_ZONES.format(entry_id), new_zones)
-        if new_outputs:
-            async_dispatcher_send(self.hass, SIGNAL_NEW_OUTPUTS.format(entry_id), new_outputs)
-        if new_doors:
-            async_dispatcher_send(self.hass, SIGNAL_NEW_DOORS.format(entry_id), new_doors)
+            async_dispatcher_send(
+                self.hass, SIGNAL_NEW_ZONES.format(entry_id), new_zones
+            )
 
     # ------------------------------------------------------------------ events
     async def _handle_sia_event(self, panel: Panel, event: SiaEvent) -> None:
@@ -253,21 +227,6 @@ class SpcEdpHub:
         messages with an AREA_STATUS read, matching the behaviour of the old
         web-gateway integration without waiting for the periodic safety poll.
         """
-        self.hass.bus.async_fire(
-            EVENT_SIA,
-            {
-                "entry_id": self.entry.entry_id,
-                "spc_id": event.spc_id,
-                "sia_code": event.sia_code,
-                "category": event.category,
-                "address": event.address,
-                "description": event.description,
-                "extra": event.extra,
-                "verification_id": event.verification_id,
-                "timestamp": event.timestamp.isoformat() if event.timestamp else None,
-            },
-        )
-
         try:
             async with self._refresh_lock:
                 update = await panel.reconcile_event(event)
@@ -282,45 +241,21 @@ class SpcEdpHub:
 
         entry_id = self.entry.entry_id
         for zone_id in update.zone_ids:
-            async_dispatcher_send(self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id))
+            async_dispatcher_send(
+                self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id)
+            )
         for area_id in update.area_ids:
-            async_dispatcher_send(self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id))
+            async_dispatcher_send(
+                self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id)
+            )
 
     # ------------------------------------------------------------------ periodic polling
-    def _start_aux_refresh(self) -> None:
-        self._stop_aux_refresh()
-        self._aux_unsub = async_track_time_interval(
-            self.hass, self._async_refresh_aux, timedelta(seconds=self.aux_refresh_interval)
-        )
-
-    def _stop_aux_refresh(self) -> None:
-        if self._aux_unsub is not None:
-            self._aux_unsub()
-            self._aux_unsub = None
-
-    async def _async_refresh_aux(self, _now: object = None) -> None:
-        """Poll outputs and doors, which have no SIA push equivalent."""
-        panel = self.panel
-        if panel is None or not self.available:
-            return
-        try:
-            async with self._refresh_lock:
-                await panel.refresh_outputs()
-                await panel.refresh_doors()
-        except SpcError:
-            _LOGGER.debug("Auxiliary (output/door) refresh failed", exc_info=True)
-            return
-        self._announce_new_entities()
-        entry_id = self.entry.entry_id
-        for output_id in panel.outputs:
-            async_dispatcher_send(self.hass, SIGNAL_UPDATE_OUTPUT.format(entry_id, output_id))
-        for door_id in panel.doors:
-            async_dispatcher_send(self.hass, SIGNAL_UPDATE_DOOR.format(entry_id, door_id))
-
     def _start_area_refresh(self) -> None:
         self._stop_area_refresh()
         self._area_unsub = async_track_time_interval(
-            self.hass, self._async_refresh_areas, timedelta(seconds=self.area_refresh_interval)
+            self.hass,
+            self._async_refresh_areas,
+            timedelta(seconds=self.area_refresh_interval),
         )
 
     def _stop_area_refresh(self) -> None:
@@ -349,6 +284,10 @@ class SpcEdpHub:
         self._announce_new_entities()
         entry_id = self.entry.entry_id
         for area_id in panel.areas:
-            async_dispatcher_send(self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id))
+            async_dispatcher_send(
+                self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id)
+            )
         for zone_id in panel.zones:
-            async_dispatcher_send(self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id))
+            async_dispatcher_send(
+                self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id)
+            )

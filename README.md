@@ -49,10 +49,10 @@ Practical implications of this model:
   available once the panel actually connects and unavailable if it
   disconnects — the config flow's "connection test" can only confirm the
   port is bindable, not that the panel will actually dial in.
-- Data is pushed to Home Assistant as SIA events arrive, rather than polled.
+- State is pushed to Home Assistant as SIA events arrive, rather than polled.
   A slower periodic reconciliation pass (see **Options** below) corrects for
   the few things SIA events can't fully disambiguate (see *Known
-  limitations*) and for outputs/doors, which have no push equivalent at all.
+  limitations*).
 - You must configure the panel itself (Receiver ID, this host's IP, and the
   port you choose here) under its EDP reporting settings for anything to
   happen.
@@ -67,33 +67,19 @@ Compared to the legacy `spc`/`pyspcwebgw` integration, this integration adds:
   timeout — no YAML required.
 - **Encrypted EDP support** (AES-128, matching `spcedp`'s capability), with
   format validation in the config flow.
-- A proper Home Assistant **device hierarchy**: one device for the panel
-  itself, and one sub-device per configured Area (via `via_device`), with
-  zones/areas/outputs/doors attached to the appropriate device.
+- A single Home Assistant device containing the panel's alarm areas and zones.
 - **Dynamic entity discovery**: if the panel is reprogrammed with new
-  areas/zones/outputs/doors after setup, matching entities appear
+  areas or zones after setup, matching entities appear
   automatically without a restart.
-- Platforms: `alarm_control_panel`, `binary_sensor`, `switch`, `lock`,
-  `button`, `sensor`, and `event` (see below) — versus core's
-  `alarm_control_panel` + `binary_sensor` only.
-- A **diagnostics** download (config entry diagnostics), with the
-  encryption key redacted.
-- A raw **SIA event bus event** (`spc_edp_sia_event`) and a dedicated
-  `event` entity, so you can build automations off of any SIA code the panel
-  sends — not just the ones mapped to entities.
+- A deliberately small entity surface: `alarm_control_panel` for arming and
+  disarming, plus `binary_sensor` for alarm zones.
 
 ### Entities created
 
 | Platform | Description |
 |---|---|
-| `alarm_control_panel` | One per Area. Maps SPC arm modes (unset / part A / part B / full) to `disarmed` / `armed_home` / `armed_night` / `armed_away`, and reports `triggered` when an alarm zone has fired since the area was last disarmed. Exposes `last_set_time`, `last_unset_time`, `last_alarm`, and `not_ready_set` as extra attributes. |
+| `alarm_control_panel` | One per Area. Maps SPC arm modes (unset / part A / part B / full) to `disarmed` / `armed_home` / `armed_night` / `armed_away`, and reports `triggered` when an alarm zone has fired since the area was last disarmed. |
 | `binary_sensor` | One per Zone, with a best-effort `device_class` inferred from the zone's raw `TYPE` code (see *Known limitations*). |
-| `binary_sensor` (diagnostic) | One panel-wide connectivity sensor reflecting whether the panel currently has an active EDP session. |
-| `switch` | One per Output. |
-| `lock` | One per Door, with `LockEntityFeature.OPEN` support (momentary release). `unlock` holds the door permanently released; `lock` uses the verified EDP door-lock opcode. |
-| `button` | Panel-wide: silence bell, restore alert, play audio, self-test, reset. Per-door and per-zone protection controls are disabled by default: inhibit, deinhibit, isolate and deisolate; doors also expose “set normal mode”. |
-| `sensor` (diagnostic) | A "Last event" sensor showing the most recent SIA event description, with the raw SIA code/category/address as attributes. |
-| `event` | A panel-wide event entity firing on every pushed SIA event, typed into `alarm` / `restore` / `trouble` / `access` / `test` / `unknown`. |
 
 
 ## Installation
@@ -130,8 +116,6 @@ After setup, use the integration's **Configure** button to tune:
 
 - **Idle timeout** — disconnect the panel if nothing is received for this
   long (the panel normally polls roughly every 10 seconds).
-- **Output/door poll interval** — outputs and doors have no SIA push
-  equivalent, so they're polled on this interval.
 - **Area/zone reconciliation interval** — a slower full re-sync used to
   correct any drift not captured by pushed SIA events (see below).
 
@@ -141,11 +125,6 @@ After setup, use the integration's **Configure** button to tune:
   typed SPC `ZoneType` vocabulary; this adapter maps the subset that has a
   meaningful Home Assistant device class. The remaining types intentionally
   fall back to a generic binary sensor rather than guessing.
-- **Door state still needs validation on a panel with configured doors.** The
-  integration now uses the verified EDP lock opcode for `lock`; `unlock`
-  keeps the door permanently released and `open` releases it momentarily.
-  The raw state remains an attribute until it has been confirmed across more
-  real door-controller configurations.
 - **Alarm "triggered" state is event-derived.** `spcedp` tracks it from
   alarm-category SIA events and clears it on a disarm event or a refresh
   that authoritatively reports the area unset. It is prompt and useful for
@@ -157,9 +136,6 @@ After setup, use the integration's **Configure** button to tune:
   default every 30 seconds (configurable). It also keeps zone state current
   on panels whose EDP reporting profile does not publish SIA zone-open/close
   events.
-- **No historical polling of the panel's own event log** — only events
-  pushed live over the SIA stream while connected are captured.
-
 ## Development
 
 ```bash

@@ -7,7 +7,6 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -50,7 +49,6 @@ async def async_setup_entry(
 ) -> None:
     """Set up binary sensor entities for known and future zones."""
     hub: SpcEdpHub = entry.runtime_data
-    async_add_entities([SpcEdpConnectivityBinarySensor(hub)])
 
     added: set[int] = set()
 
@@ -70,33 +68,6 @@ async def async_setup_entry(
 
     if hub.panel is not None:
         _add_zones(set(hub.panel.zones))
-
-
-class SpcEdpConnectivityBinarySensor(SpcEdpEntity, BinarySensorEntity):
-    """Whether the panel currently has an active EDP connection to us."""
-
-    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    def __init__(self, hub: SpcEdpHub) -> None:
-        """Initialize the connectivity sensor."""
-        super().__init__(hub)
-        self._attr_unique_id = f"{hub.unique_id}-connectivity"
-
-    @property
-    def available(self) -> bool:
-        """This entity reports connectivity, so it is always available itself."""
-        return True
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Belongs to the panel device."""
-        return hub_device_info(self._hub)
-
-    @property
-    def is_on(self) -> bool:
-        """True while the panel has an active EDP session."""
-        return self._hub.available
 
 
 class SpcEdpZoneBinarySensor(SpcEdpEntity, BinarySensorEntity):
@@ -141,22 +112,6 @@ class SpcEdpZoneBinarySensor(SpcEdpEntity, BinarySensorEntity):
         if zone is None:
             return None
         return zone.is_open
-
-    @property
-    def extra_state_attributes(self) -> dict[str, str | bool] | None:
-        """Expose raw diagnostic fields the panel does not otherwise surface."""
-        zone = self._zone
-        if zone is None:
-            return None
-        return {
-            "zone_type": zone.type,
-            "raw_status": zone.status,
-            "raw_input": zone.input,
-            "proc_state": zone.proc_state,
-            "logic_input": zone.logic_input,
-            "inhibit_allowed": zone.inhibit_allowed,
-            "isolate_allowed": zone.isolate_allowed,
-        }
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to zone-specific + availability updates."""
