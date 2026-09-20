@@ -1,0 +1,55 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-json
+      - id: check-toml
+      - id: check-yaml
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  - repo: local
+    hooks:
+      - id: lint
+        name: lint
+        entry: mise run lint
+        language: system
+        pass_filenames: false
+        files: '\.(py|pyi)$|^pyproject\.toml$'
+      - id: format-check
+        name: format-check
+        entry: mise run format-check
+        language: system
+        pass_filenames: false
+        files: '\.(py|pyi)$|^pyproject\.toml$'
+      - id: typecheck
+        name: typecheck
+        entry: mise run typecheck
+        language: system
+        pass_filenames: false
+        files: '\.(py|pyi)$|^(pyproject\.toml|uv\.lock)$'
+      - id: pylint
+        name: pylint
+        entry: mise run pylint
+        language: system
+        pass_filenames: false
+        files: '\.(py|pyi)$|^pyproject\.toml$'
+      - id: security
+        name: security
+        entry: mise run security
+        language: system
+        pass_filenames: false
+        files: '\.(py|pyi)$|^pyproject\.toml$'
+      - id: workflows
+        name: workflows
+        entry: mise run workflows
+        language: system
+        pass_filenames: false
+        files: '^\.github/workflows/'
+      - id: metadata
+        name: integration metadata
+        entry: mise run metadata
+        language: system
+        pass_filenames: false
+        always_run: true

@@ -93,9 +93,7 @@ async def test_alarm_controls_refresh_confirmed_state(hass, method, opcode):
     hub = make_hub(hass)
     session = MagicMock()
     session.binary_command = AsyncMock()
-    session.xml_command = AsyncMock(
-        return_value={"AREA_STATUS": [{"ID": "1", "MODE": "2"}]}
-    )
+    session.xml_command = AsyncMock(return_value={"AREA_STATUS": [{"ID": "1", "MODE": "2"}]})
     hub.panel = Panel(session)
     hub.panel.areas[1] = Area(id=1, mode="0")
     hub.available = True

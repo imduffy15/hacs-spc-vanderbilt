@@ -31,16 +31,10 @@ async def test_area_event_is_reconciled_before_entity_dispatch(hass) -> None:
         verification_id="",
     )
     panel = MagicMock()
-    panel.reconcile_event = AsyncMock(
-        return_value=EventStateUpdate(area_ids=frozenset({1}))
-    )
+    panel.reconcile_event = AsyncMock(return_value=EventStateUpdate(area_ids=frozenset({1})))
 
-    with patch(
-        "custom_components.spc_edp.hub.async_dispatcher_send"
-    ) as dispatcher_send:
+    with patch("custom_components.spc_edp.hub.async_dispatcher_send") as dispatcher_send:
         await hub._handle_sia_event(panel, event)
 
     panel.reconcile_event.assert_awaited_once_with(event)
-    dispatcher_send.assert_called_once_with(
-        hass, SIGNAL_UPDATE_AREA.format("test-entry", 1)
-    )
+    dispatcher_send.assert_called_once_with(hass, SIGNAL_UPDATE_AREA.format("test-entry", 1))

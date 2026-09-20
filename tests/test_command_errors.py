@@ -21,9 +21,7 @@ from custom_components.spc_edp.commands import _rejection_message, async_run_com
         (ReplyCode.NOT_IMPLEMENTED_PANEL, "panel command channel"),
     ],
 )
-def test_known_reply_codes_have_actionable_messages(
-    code: ReplyCode, expected: str
-) -> None:
+def test_known_reply_codes_have_actionable_messages(code: ReplyCode, expected: str) -> None:
     """Each known panel rejection explains what the user can do next."""
     message = _rejection_message(PanelRejected(code), "testing the command")
     assert expected in message

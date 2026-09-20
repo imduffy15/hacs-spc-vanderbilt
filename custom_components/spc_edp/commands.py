@@ -25,11 +25,17 @@ def _rejection_message(
     if code == ReplyCode.PANEL_WAITING:
         return f"The SPC panel is busy waiting for data. Wait a few seconds, then retry {action}."
     if code == ReplyCode.PANEL_ENGINEER:
-        return f"The SPC panel is in full engineer mode. Exit engineer mode at the panel, then retry {action}."
+        return (
+            "The SPC panel is in full engineer mode. "
+            f"Exit engineer mode at the panel, then retry {action}."
+        )
     if code == ReplyCode.NOT_POSSIBLE_NOW:
         return f"The SPC panel cannot perform {action} in its current state. No action was taken."
     if code == ReplyCode.NOT_PERMITTED:
-        return f"The SPC panel does not permit {action} for this EDP receiver. Check the panel's EDP permissions."
+        return (
+            f"The SPC panel does not permit {action} for this EDP receiver. "
+            "Check the panel's EDP permissions."
+        )
     if code == ReplyCode.NOT_IMPLEMENTED:
         if engineer_mode_possible:
             return (
@@ -50,9 +56,7 @@ async def async_run_command(
         await operation
     except PanelRejected as error:
         raise HomeAssistantError(
-            _rejection_message(
-                error, action, engineer_mode_possible=engineer_mode_possible
-            )
+            _rejection_message(error, action, engineer_mode_possible=engineer_mode_possible)
         ) from error
     except SpcError as error:
         raise HomeAssistantError(f"Error {action}: {error}") from error

@@ -45,9 +45,7 @@ async def test_user_flow_creates_entry(hass: HomeAssistant) -> None:
             return_value=None,
         ),
     ):
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], _VALID_INPUT
-        )
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], _VALID_INPUT)
         await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_RECEIVER_ID] == 1001
@@ -84,9 +82,7 @@ async def test_user_flow_rejects_unbindable_address(hass: HomeAssistant) -> None
         result = await hass.config_entries.flow.async_init(
             DOMAIN, context={"source": config_entries.SOURCE_USER}
         )
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], _VALID_INPUT
-        )
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], _VALID_INPUT)
     assert result["type"] is FlowResultType.FORM
     assert result["errors"]["base"] == "cannot_bind"
 
@@ -150,9 +146,7 @@ async def test_receiver_id_accepts_panels_full_range(hass, receiver_id) -> None:
 
 
 @pytest.mark.parametrize("receiver_id", [0, -1, 999998, 999999])
-async def test_receiver_id_rejects_reserved_and_out_of_range_values(
-    hass, receiver_id
-) -> None:
+async def test_receiver_id_rejects_reserved_and_out_of_range_values(hass, receiver_id) -> None:
     from custom_components.spc_edp.config_flow import SpcEdpConfigFlow
 
     flow = SpcEdpConfigFlow()

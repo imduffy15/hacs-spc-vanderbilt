@@ -16,7 +16,7 @@ CONF_PANEL_ID = "panel_id"
 CONF_IDLE_TIMEOUT = "idle_timeout"
 CONF_AREA_REFRESH_INTERVAL = "area_refresh_interval"
 
-DEFAULT_BIND = "0.0.0.0"
+DEFAULT_BIND = "0.0.0.0"  # nosec B104 # panels initiate connections on the LAN.
 DEFAULT_PORT = 50000
 DEFAULT_IDLE_TIMEOUT = 120
 # EDP event reporting can be selectively disabled at the panel. A 30-second

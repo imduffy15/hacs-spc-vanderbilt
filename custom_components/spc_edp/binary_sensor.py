@@ -40,11 +40,11 @@ _DEVICE_CLASS_BY_TYPE: dict[ZoneType, BinarySensorDeviceClass] = {
 
 
 def _device_class(zone_type: ZoneType | None) -> BinarySensorDeviceClass | None:
-    return _DEVICE_CLASS_BY_TYPE.get(zone_type)
+    return _DEVICE_CLASS_BY_TYPE.get(zone_type) if zone_type is not None else None
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant, entry: ConfigEntry[SpcEdpHub], async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up binary sensor entities for known and future zones."""
     hub: SpcEdpHub = entry.runtime_data
@@ -60,9 +60,7 @@ async def async_setup_entry(
         async_add_entities(SpcEdpZoneBinarySensor(hub, zone_id) for zone_id in new)
 
     entry.async_on_unload(
-        async_dispatcher_connect(
-            hass, SIGNAL_NEW_ZONES.format(entry.entry_id), _add_zones
-        )
+        async_dispatcher_connect(hass, SIGNAL_NEW_ZONES.format(entry.entry_id), _add_zones)
     )
 
     if hub.panel is not None:

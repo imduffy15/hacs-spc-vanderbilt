@@ -37,11 +37,7 @@ def _remove_obsolete_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
             continue
         domain = entity.entity_id.partition(".")[0]
         _, marker, zone_id = entity.unique_id.rpartition("-zone-")
-        is_zone = (
-            domain == Platform.BINARY_SENSOR.value
-            and bool(marker)
-            and zone_id.isdigit()
-        )
+        is_zone = domain == Platform.BINARY_SENSOR.value and bool(marker) and zone_id.isdigit()
         if domain != Platform.ALARM_CONTROL_PANEL.value and not is_zone:
             entity_registry.async_remove(entity.entity_id)
 
@@ -80,9 +76,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def _async_migrate_registry_identity(
-    hass: HomeAssistant, entry: ConfigEntry
-) -> None:
+async def _async_migrate_registry_identity(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Rewrite existing registry records once Home Assistant has loaded them."""
     panel_id = entry.data.get(CONF_PANEL_ID)
     if not panel_id:
@@ -95,9 +89,7 @@ async def _async_migrate_registry_identity(
     old_prefix = f"{old_identity}-"
     new_prefix = f"{panel_id}-"
     for entity in list(entity_registry.entities.values()):
-        if entity.config_entry_id == entry.entry_id and entity.unique_id.startswith(
-            old_prefix
-        ):
+        if entity.config_entry_id == entry.entry_id and entity.unique_id.startswith(old_prefix):
             entity_registry.async_update_entity(
                 entity.entity_id,
                 new_unique_id=new_prefix + entity.unique_id.removeprefix(old_prefix),

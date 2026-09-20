@@ -6,6 +6,7 @@ import asyncio
 import logging
 from collections.abc import Callable
 from datetime import timedelta
+from typing import cast
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -37,7 +38,7 @@ _LOGGER = logging.getLogger(__name__)
 class SpcEdpHub:
     """Owns the PanelServer/Panel lifecycle for a single config entry."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry[SpcEdpHub]) -> None:
         """Initialize the hub (does not start listening yet)."""
         self.hass = hass
         self.entry = entry
@@ -52,17 +53,17 @@ class SpcEdpHub:
     @property
     def receiver_id(self) -> int:
         """The EDP receiver id the panel is configured to dial."""
-        return self.entry.data[CONF_RECEIVER_ID]
+        return cast(int, self.entry.data[CONF_RECEIVER_ID])
 
     @property
     def bind(self) -> str:
         """The local address the listen socket is bound to."""
-        return self.entry.data[CONF_BIND]
+        return cast(str, self.entry.data[CONF_BIND])
 
     @property
     def port(self) -> int:
         """The local TCP port the listen socket is bound to."""
-        return self.entry.data[CONF_PORT]
+        return cast(int, self.entry.data[CONF_PORT])
 
     @property
     def encryption_key(self) -> str | None:
@@ -72,22 +73,20 @@ class SpcEdpHub:
     @property
     def idle_timeout(self) -> float:
         """Seconds of silence before a stale panel connection is dropped."""
-        return self.entry.options.get(CONF_IDLE_TIMEOUT, DEFAULT_IDLE_TIMEOUT)
+        return float(self.entry.options.get(CONF_IDLE_TIMEOUT, DEFAULT_IDLE_TIMEOUT))
 
     @property
-    def area_refresh_interval(self) -> int:
+    def area_refresh_interval(self) -> float:
         """Poll interval (seconds) for the area/zone drift-reconciliation pass."""
-        return self.entry.options.get(
-            CONF_AREA_REFRESH_INTERVAL, DEFAULT_AREA_REFRESH_INTERVAL
+        return float(
+            self.entry.options.get(CONF_AREA_REFRESH_INTERVAL, DEFAULT_AREA_REFRESH_INTERVAL)
         )
 
     @property
     def unique_id(self) -> str:
         """Stable physical-panel identity, with an old-entry fallback."""
         return str(
-            self.entry.data.get(CONF_PANEL_ID)
-            or self.entry.unique_id
-            or f"{self.bind}:{self.port}"
+            self.entry.data.get(CONF_PANEL_ID) or self.entry.unique_id or f"{self.bind}:{self.port}"
         )
 
     async def async_start(self) -> None:
@@ -101,7 +100,8 @@ class SpcEdpHub:
             on_session=self._on_session,
         )
         try:
-            await self._server.__aenter__()
+            # The listener context spans Home Assistant setup and unload.
+            await self._server.__aenter__()  # pylint: disable=unnecessary-dunder-call
         except OSError as err:
             self._server = None
             raise ConfigEntryNotReady(
@@ -140,21 +140,15 @@ class SpcEdpHub:
             self._async_set_availability(False)
 
     def _async_set_availability(self, available: bool) -> None:
-        async_dispatcher_send(
-            self.hass, SIGNAL_AVAILABILITY.format(self.entry.entry_id), available
-        )
+        async_dispatcher_send(self.hass, SIGNAL_AVAILABILITY.format(self.entry.entry_id), available)
 
     def _announce_new_entities(self) -> None:
         """Platforms deduplicate IDs when adding entities."""
         if self.panel is None:
             return
         entry_id = self.entry.entry_id
-        async_dispatcher_send(
-            self.hass, SIGNAL_NEW_AREAS.format(entry_id), set(self.panel.areas)
-        )
-        async_dispatcher_send(
-            self.hass, SIGNAL_NEW_ZONES.format(entry_id), set(self.panel.zones)
-        )
+        async_dispatcher_send(self.hass, SIGNAL_NEW_AREAS.format(entry_id), set(self.panel.areas))
+        async_dispatcher_send(self.hass, SIGNAL_NEW_ZONES.format(entry_id), set(self.panel.zones))
 
     async def _handle_sia_event(self, panel: Panel, event: SiaEvent) -> None:
         """Publish zone events and authoritative area-state reads."""
@@ -173,13 +167,9 @@ class SpcEdpHub:
         self._announce_new_entities()
         entry_id = self.entry.entry_id
         for zone_id in update.zone_ids:
-            async_dispatcher_send(
-                self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id)
-            )
+            async_dispatcher_send(self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id))
         for area_id in update.area_ids:
-            async_dispatcher_send(
-                self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id)
-            )
+            async_dispatcher_send(self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id))
 
     def _start_area_refresh(self) -> None:
         self._stop_area_refresh()
@@ -216,10 +206,6 @@ class SpcEdpHub:
         self._announce_new_entities()
         entry_id = self.entry.entry_id
         for area_id in area_ids | set(panel.areas):
-            async_dispatcher_send(
-                self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id)
-            )
+            async_dispatcher_send(self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id))
         for zone_id in zone_ids | set(panel.zones):
-            async_dispatcher_send(
-                self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id)
-            )
+            async_dispatcher_send(self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id))

@@ -57,15 +57,13 @@ def _user_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
     defaults = defaults or {}
     return vol.Schema(
         {
-            vol.Required(
-                CONF_RECEIVER_ID, default=defaults.get(CONF_RECEIVER_ID)
-            ): NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX)),
-            vol.Required(
-                CONF_PORT, default=defaults.get(CONF_PORT, DEFAULT_PORT)
-            ): NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX)),
-            vol.Required(
-                CONF_BIND, default=defaults.get(CONF_BIND, DEFAULT_BIND)
-            ): TextSelector(),
+            vol.Required(CONF_RECEIVER_ID, default=defaults.get(CONF_RECEIVER_ID)): NumberSelector(
+                NumberSelectorConfig(mode=NumberSelectorMode.BOX)
+            ),
+            vol.Required(CONF_PORT, default=defaults.get(CONF_PORT, DEFAULT_PORT)): NumberSelector(
+                NumberSelectorConfig(mode=NumberSelectorMode.BOX)
+            ),
+            vol.Required(CONF_BIND, default=defaults.get(CONF_BIND, DEFAULT_BIND)): TextSelector(),
             vol.Optional(
                 CONF_ENCRYPTION_KEY, default=defaults.get(CONF_ENCRYPTION_KEY, "")
             ): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
@@ -85,7 +83,8 @@ async def _async_test_bind(bind: str, port: int) -> None:
     await server.wait_closed()
 
 
-class SpcEdpConfigFlow(ConfigFlow, domain=DOMAIN):
+# Home Assistant supports async overrides and optional methods on this base class.
+class SpcEdpConfigFlow(ConfigFlow, domain=DOMAIN):  # pylint: disable=abstract-method
     """Handle a config flow for Vanderbilt SPC (EDP)."""
 
     VERSION = 3
@@ -97,13 +96,15 @@ class SpcEdpConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         receiver_id = int(user_input[CONF_RECEIVER_ID])
-        if receiver_id != user_input[CONF_RECEIVER_ID] or not (
-            MIN_RECEIVER_ID <= receiver_id <= MAX_RECEIVER_ID
+        if (
+            receiver_id != user_input[CONF_RECEIVER_ID]
+            or receiver_id < MIN_RECEIVER_ID
+            or receiver_id > MAX_RECEIVER_ID
         ):
             errors[CONF_RECEIVER_ID] = "invalid_receiver_id"
 
         port = int(user_input[CONF_PORT])
-        if port != user_input[CONF_PORT] or not (MIN_PORT <= port <= MAX_PORT):
+        if port != user_input[CONF_PORT] or not MIN_PORT <= port <= MAX_PORT:
             errors[CONF_PORT] = "invalid_port"
 
         key = (user_input.get(CONF_ENCRYPTION_KEY) or "").strip()
@@ -118,9 +119,7 @@ class SpcEdpConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return errors
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -185,9 +184,7 @@ class SpcEdpConfigFlow(ConfigFlow, domain=DOMAIN):
 class SpcEdpOptionsFlow(OptionsFlow):
     """Tune runtime behaviour without re-running the connection setup."""
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manage the options."""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
@@ -203,9 +200,7 @@ class SpcEdpOptionsFlow(OptionsFlow):
                 ),
                 vol.Required(
                     CONF_AREA_REFRESH_INTERVAL,
-                    default=options.get(
-                        CONF_AREA_REFRESH_INTERVAL, DEFAULT_AREA_REFRESH_INTERVAL
-                    ),
+                    default=options.get(CONF_AREA_REFRESH_INTERVAL, DEFAULT_AREA_REFRESH_INTERVAL),
                 ): NumberSelector(
                     NumberSelectorConfig(min=30, max=7200, mode=NumberSelectorMode.BOX)
                 ),

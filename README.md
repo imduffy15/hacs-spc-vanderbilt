@@ -2,7 +2,7 @@
 
 Local zone sensors and alarm controls for Vanderbilt/Siemens SPC panels.
 The panel connects directly to Home Assistant over EDP v2; no web gateway
-or cloud service is needed. Requires Python 3.14 or newer.
+or cloud service is needed. Requires Home Assistant 2026.9.3 or newer (Python 3.14.2+).
 
 ## Install
 
@@ -99,14 +99,26 @@ It is not a complete panel-native record of active alarms after a restart.
 ## Development
 
 ```sh
-uv venv --python 3.14
-uv pip install -r requirements-test.txt ruff
-uv run pytest -q
-uv run ruff check custom_components tests
+mise install
+mise run setup       # Locked dependencies and prek Git hooks
+mise run format      # Apply Ruff formatting
+mise run ci          # All checks, tests and release packaging
 ```
 
+`mise run check` runs Ruff lint/format, strict mypy, Pylint, Bandit,
+workflow checks and file hygiene. `mise run test` runs the tests separately.
+Tool versions and dependencies are pinned in `mise.lock` and `uv.lock`.
+GitHub Actions call these same tasks and cache tools, dependencies and check results.
+Tag builds bypass caches before publishing their validated artifacts.
+
+The full CI task also runs Hassfest and HACS validation using Docker.
+For local HACS checks, run `gh auth login` first; HACS checks the pushed commit.
+To release, update the version in both `pyproject.toml` and `manifest.json`,
+then push a matching `vX.Y.Z` tag. CI publishes `spc_edp.zip` for HACS.
+
 The integration pins [spcedp](https://github.com/imduffy15/spcedp) to a tested
-commit. When changing both projects, install the library checkout with
-`uv pip install -e ../spcedp`, run both test suites, then update the pin.
+commit in both `manifest.json` and `pyproject.toml`; metadata validation keeps
+them aligned. When updating the library, update both pins, run `mise exec -- uv lock`,
+and run both test suites.
 
 SPC brand artwork comes from Home Assistant's brands repository. MIT license.

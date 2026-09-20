@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from homeassistant.components.alarm_control_panel import (
-    AlarmControlPanelEntity,
+from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity
+from homeassistant.components.alarm_control_panel.const import (
     AlarmControlPanelEntityFeature,
     AlarmControlPanelState,
 )
@@ -29,7 +29,7 @@ _MODE_TO_STATE: dict[ArmMode, AlarmControlPanelState] = {
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant, entry: ConfigEntry[SpcEdpHub], async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up alarm control panel entities for known and future areas."""
     hub: SpcEdpHub = entry.runtime_data
@@ -44,16 +44,15 @@ async def async_setup_entry(
         async_add_entities(SpcEdpAlarmControlPanel(hub, area_id) for area_id in new)
 
     entry.async_on_unload(
-        async_dispatcher_connect(
-            hass, SIGNAL_NEW_AREAS.format(entry.entry_id), _add_areas
-        )
+        async_dispatcher_connect(hass, SIGNAL_NEW_AREAS.format(entry.entry_id), _add_areas)
     )
 
     if hub.panel is not None:
         _add_areas(set(hub.panel.areas))
 
 
-class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity):
+# Home Assistant supports async overrides and optional methods on this base class.
+class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity):  # pylint: disable=abstract-method
     """Representation of one SPC alarm area."""
 
     _attr_code_arm_required = False

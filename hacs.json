@@ -1,7 +1,7 @@
 {
   "name": "Vanderbilt SPC (EDP)",
   "render_readme": true,
-  "homeassistant": "2024.10.0",
+  "homeassistant": "2026.9.3",
   "zip_release": true,
   "filename": "spc_edp.zip"
 }
