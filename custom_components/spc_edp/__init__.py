@@ -1,12 +1,4 @@
-"""The Vanderbilt SPC (EDP) integration.
-
-Home Assistant does not poll the panel: on setup we open a TCP listen
-socket and the panel dials in on its own schedule (see the panel-side EDP
-setup instructions in the README). Entities become available once that
-connection is established and go unavailable again if it drops, with the
-panel expected to redial automatically per its own "always connected"
-configuration.
-"""
+"""Vanderbilt SPC alarm controls and zone sensors."""
 
 from __future__ import annotations
 
@@ -133,7 +125,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: SpcEdpConfigEntry) -> bo
     entry.runtime_data = hub
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    try:
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    except BaseException:
+        await hub.async_stop()
+        raise
     return True
 
 

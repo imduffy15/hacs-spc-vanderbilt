@@ -89,3 +89,50 @@ async def test_user_flow_rejects_unbindable_address(hass: HomeAssistant) -> None
         )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"]["base"] == "cannot_bind"
+
+
+async def test_reconfigure_active_listener_preserves_panel_identity(hass) -> None:
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.spc_edp.const import CONF_PANEL_ID
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=3,
+        unique_id="12345",
+        title="SPC4300",
+        data={**_VALID_INPUT, CONF_PANEL_ID: "12345"},
+    )
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={
+            "source": config_entries.SOURCE_RECONFIGURE,
+            "entry_id": entry.entry_id,
+        },
+    )
+    with (
+        patch("custom_components.spc_edp.config_flow._async_test_bind") as bind,
+        patch.object(hass.config_entries, "async_reload", return_value=True),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {**_VALID_INPUT, CONF_RECEIVER_ID: 1002}
+        )
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    bind.assert_not_called()
+    assert entry.unique_id == "12345"
+    assert entry.data[CONF_PANEL_ID] == "12345"
+    assert entry.data[CONF_RECEIVER_ID] == 1002
+
+
+@pytest.mark.parametrize("field", [CONF_PORT, CONF_RECEIVER_ID])
+async def test_fractional_identifiers_are_rejected(hass, field) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**_VALID_INPUT, field: 1001.5}
+    )
+    assert field in result["errors"]

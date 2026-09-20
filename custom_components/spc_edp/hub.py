@@ -1,17 +1,10 @@
-"""Runtime hub that owns a spcedp PanelServer for one config entry.
-
-Unlike most Home Assistant integrations, the SPC panel is the one that
-dials *in* to us: :class:`spcedp.PanelServer` opens a TCP listen socket and
-waits for the panel to connect, authenticate, and start polling. This hub
-wraps that lifecycle, keeps the latest :class:`spcedp.Panel` snapshot, and
-reconciles alarm-area and zone state on every pushed SIA event.
-"""
+"""Own one panel connection and publish sensor and alarm-area updates."""
 
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
+from collections.abc import Callable
 from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
@@ -51,19 +44,11 @@ class SpcEdpHub:
         self.panel: Panel | None = None
         self.available = False
         self._server: PanelServer | None = None
-        self._area_unsub: object | None = None
+        self._area_unsub: Callable[[], None] | None = None
         self._refresh_lock = asyncio.Lock()
 
-        self._known_area_ids: set[int] = set()
-        self._known_zone_ids: set[int] = set()
+        self._session: Session | None = None
 
-        # Live inbound EDP connections (normally exactly one: the panel).
-        # Tracked so async_stop() can force them closed; see its docstring.
-        # Session is a mutable dataclass and consequently unhashable.  Keep
-        # sessions keyed by object identity rather than in a set.
-        self._active_sessions: dict[int, Session] = {}
-
-    # ------------------------------------------------------------------ config
     @property
     def receiver_id(self) -> int:
         """The EDP receiver id the panel is configured to dial."""
@@ -96,13 +81,15 @@ class SpcEdpHub:
             CONF_AREA_REFRESH_INTERVAL, DEFAULT_AREA_REFRESH_INTERVAL
         )
 
-    # ------------------------------------------------------------------ unique id
     @property
     def unique_id(self) -> str:
         """Stable physical-panel identity, with an old-entry fallback."""
-        return str(self.entry.data.get(CONF_PANEL_ID, f"{self.bind}:{self.port}"))
+        return str(
+            self.entry.data.get(CONF_PANEL_ID)
+            or self.entry.unique_id
+            or f"{self.bind}:{self.port}"
+        )
 
-    # ------------------------------------------------------------------ lifecycle
     async def async_start(self) -> None:
         """Open the EDP listen socket. Raises ConfigEntryNotReady on failure."""
         self._server = PanelServer(
@@ -122,70 +109,38 @@ class SpcEdpHub:
             ) from err
 
     async def async_stop(self) -> None:
-        """Stop listening and force-close any live panel connection.
-
-        Closing the listen socket alone is not enough: ``asyncio.Server.
-        wait_closed()`` waits for every already-accepted connection handler
-        to finish naturally, which never happens on its own while the panel
-        keeps its EDP session open and polling. Force-close the writer of
-        any live session first so the server's read loop unblocks promptly,
-        then bound the whole teardown with a timeout so a config entry
-        reload/unload can never hang indefinitely on a misbehaving peer.
-        """
+        """Close the listener and its connections."""
         self._stop_area_refresh()
-        server, self._server = self._server, None
-        if server is None:
-            return
-        for session in list(self._active_sessions.values()):
-            with contextlib.suppress(Exception):
-                session.writer.close()
-        try:
-            async with asyncio.timeout(10):
-                await server.__aexit__(None, None, None)
-        except TimeoutError:
-            _LOGGER.warning(
-                "Timed out waiting for the EDP listen socket on %s:%s to "
-                "close cleanly; continuing unload anyway",
-                self.bind,
-                self.port,
-            )
+        if self._server is not None:
+            await self._server.__aexit__(None, None, None)
+            self._server = None
 
-    # ------------------------------------------------------------------ session
     async def _on_session(self, session: Session) -> None:
-        """Handle one inbound panel connection for its whole lifetime.
-
-        ``spcedp`` invokes this once per TCP session and keeps it running
-        concurrently with the read loop; it returns (and the panel is
-        considered disconnected) once ``panel.events()`` stops iterating,
-        which ``spcedp`` guarantees happens on disconnect.
-        """
-        _LOGGER.info("Panel connected to receiver %s:%s", self.bind, self.port)
-        self._active_sessions[id(session)] = session
-        try:
-            panel = await Panel.from_session(session)
-        except SpcError:
-            _LOGGER.exception("Failed to read initial panel state")
+        """Keep one connected panel, allowing retry after any setup failure."""
+        expected_id = self.entry.data.get(CONF_PANEL_ID)
+        if self._session is not None or (
+            expected_id is not None and str(session.panel_id) != str(expected_id)
+        ):
+            _LOGGER.warning("Rejecting an unexpected or duplicate panel connection")
+            session.request_teardown()
             return
-
-        self.panel = panel
-        self.available = True
-        self._announce_new_entities()
-        self._async_set_availability(True)
-        self._start_area_refresh()
-
+        self._session = session
         try:
-            async for event in panel.events():
-                await self._handle_sia_event(panel, event)
+            self.panel = await Panel.from_session(session)
+            self.available = True
+            self._announce_new_entities()
+            self._async_set_availability(True)
+            self._start_area_refresh()
+            async for event in self.panel.events():
+                await self._handle_sia_event(self.panel, event)
         except SpcError:
-            _LOGGER.debug("SIA event stream ended", exc_info=True)
+            _LOGGER.warning("Panel communication failed", exc_info=True)
         finally:
-            self._active_sessions.pop(id(session), None)
+            session.request_teardown()
+            self._session = None
             self.available = False
             self._stop_area_refresh()
             self._async_set_availability(False)
-            _LOGGER.warning(
-                "Panel disconnected from receiver %s:%s", self.bind, self.port
-            )
 
     def _async_set_availability(self, available: bool) -> None:
         async_dispatcher_send(
@@ -193,40 +148,19 @@ class SpcEdpHub:
         )
 
     def _announce_new_entities(self) -> None:
-        """Diff the latest snapshot against known ids and notify platforms.
-
-        Areas and zones are normally static for the lifetime of a panel's
-        configuration, but a reprogrammed panel can introduce new ones; this
-        lets the two supported platforms add entities without a restart.
-        """
-        panel = self.panel
-        if panel is None:
+        """Platforms deduplicate IDs when adding entities."""
+        if self.panel is None:
             return
-        new_areas = set(panel.areas) - self._known_area_ids
-        new_zones = set(panel.zones) - self._known_zone_ids
-
-        self._known_area_ids |= new_areas
-        self._known_zone_ids |= new_zones
-
         entry_id = self.entry.entry_id
-        if new_areas:
-            async_dispatcher_send(
-                self.hass, SIGNAL_NEW_AREAS.format(entry_id), new_areas
-            )
-        if new_zones:
-            async_dispatcher_send(
-                self.hass, SIGNAL_NEW_ZONES.format(entry_id), new_zones
-            )
+        async_dispatcher_send(
+            self.hass, SIGNAL_NEW_AREAS.format(entry_id), set(self.panel.areas)
+        )
+        async_dispatcher_send(
+            self.hass, SIGNAL_NEW_ZONES.format(entry_id), set(self.panel.zones)
+        )
 
-    # ------------------------------------------------------------------ events
     async def _handle_sia_event(self, panel: Panel, event: SiaEvent) -> None:
-        """Reconcile the snapshot and notify entities for one pushed SIA event.
-
-        Area-mode SIA messages are push notifications, but their payload is
-        not a complete state snapshot. ``spcedp`` immediately follows those
-        messages with an AREA_STATUS read, matching the behaviour of the old
-        web-gateway integration without waiting for the periodic safety poll.
-        """
+        """Publish zone events and authoritative area-state reads."""
         try:
             async with self._refresh_lock:
                 update = await panel.reconcile_event(event)
@@ -239,6 +173,7 @@ class SpcEdpHub:
             )
             update = panel.apply_event(event)
 
+        self._announce_new_entities()
         entry_id = self.entry.entry_id
         for zone_id in update.zone_ids:
             async_dispatcher_send(
@@ -249,12 +184,11 @@ class SpcEdpHub:
                 self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id)
             )
 
-    # ------------------------------------------------------------------ periodic polling
     def _start_area_refresh(self) -> None:
         self._stop_area_refresh()
         self._area_unsub = async_track_time_interval(
             self.hass,
-            self._async_refresh_areas,
+            self.async_refresh,
             timedelta(seconds=self.area_refresh_interval),
         )
 
@@ -263,31 +197,32 @@ class SpcEdpHub:
             self._area_unsub()
             self._area_unsub = None
 
-    async def _async_refresh_areas(self, _now: object = None) -> None:
-        """Periodically reconcile areas/zones beyond what SIA events cover.
-
-        ``Panel.apply_event`` is a best-effort, partial reconciliation (see
-        its docstring): a generic "closing" event can't distinguish part-set
-        from full-set, for example. This slower full refresh is the
-        authoritative correction pass.
-        """
+    async def async_refresh(self, _now: object = None) -> None:
+        """Reconcile state and notify removed entities as well as current ones."""
         panel = self.panel
         if panel is None or not self.available:
             return
+        if _now is not None and self._refresh_lock.locked():
+            return
         try:
             async with self._refresh_lock:
+                if panel is not self.panel or not self.available:
+                    return
+                area_ids = set(panel.areas)
+                zone_ids = set(panel.zones)
                 await panel.refresh_areas()
                 await panel.refresh_zones()
         except SpcError:
             _LOGGER.debug("Area/zone reconciliation refresh failed", exc_info=True)
+        if panel is not self.panel or not self.available:
             return
         self._announce_new_entities()
         entry_id = self.entry.entry_id
-        for area_id in panel.areas:
+        for area_id in area_ids | set(panel.areas):
             async_dispatcher_send(
                 self.hass, SIGNAL_UPDATE_AREA.format(entry_id, area_id)
             )
-        for zone_id in panel.zones:
+        for zone_id in zone_ids | set(panel.zones):
             async_dispatcher_send(
                 self.hass, SIGNAL_UPDATE_ZONE.format(entry_id, zone_id)
             )

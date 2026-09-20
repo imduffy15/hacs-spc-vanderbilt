@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Awaitable
 
 from homeassistant.exceptions import HomeAssistantError
-from spcedp import PanelRejected
+from spcedp import PanelRejected, SpcError
 from spcedp.errors import ReplyCode, reply_message
 
 
@@ -54,3 +54,5 @@ async def async_run_command(
                 error, action, engineer_mode_possible=engineer_mode_possible
             )
         ) from error
+    except SpcError as error:
+        raise HomeAssistantError(f"Error {action}: {error}") from error

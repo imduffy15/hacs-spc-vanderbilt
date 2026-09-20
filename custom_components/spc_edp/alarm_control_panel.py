@@ -9,7 +9,7 @@ from homeassistant.components.alarm_control_panel import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from spcedp import ArmMode
@@ -17,7 +17,7 @@ from spcedp.panel import Area
 
 from .commands import async_run_command
 from .const import SIGNAL_NEW_AREAS, SIGNAL_UPDATE_AREA
-from .entity import SpcEdpEntity, hub_device_info
+from .entity import SpcEdpEntity
 from .hub import SpcEdpHub
 
 _MODE_TO_STATE: dict[ArmMode, AlarmControlPanelState] = {
@@ -81,9 +81,8 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity):
         return area.name if area and area.name else f"Area {self._area_id}"
 
     @property
-    def device_info(self) -> DeviceInfo:
-        """Areas share the single panel device; there is no separate sub-device."""
-        return hub_device_info(self._hub)
+    def available(self) -> bool:
+        return super().available and self._area is not None
 
     @property
     def changed_by(self) -> str | None:
@@ -111,40 +110,35 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity):
             async_dispatcher_connect(
                 self.hass,
                 SIGNAL_UPDATE_AREA.format(self._hub.entry.entry_id, self._area_id),
-                self._handle_area_update,
+                self.async_write_ha_state,
             )
         )
 
-    @callback
-    def _handle_area_update(self) -> None:
-        self.async_write_ha_state()
+    async def _async_set_mode(self, mode: ArmMode) -> None:
+        if not self.available or self._hub.panel is None:
+            raise HomeAssistantError("The SPC panel is unavailable")
+        area = self._hub.panel.area(self._area_id)
+        command = {
+            ArmMode.UNSET: area.unset,
+            ArmMode.PART_A: area.set_a,
+            ArmMode.PART_B: area.set_b,
+            ArmMode.FULL: area.set,
+        }[mode]
+        await async_run_command(
+            command(),
+            "disarming this area" if mode is ArmMode.UNSET else "arming this area",
+            engineer_mode_possible=mode is not ArmMode.UNSET,
+        )
+        await self._hub.async_refresh()
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
-        """Send disarm command."""
-        await async_run_command(
-            self._hub.panel.area(self._area_id).unset(), "disarming this area"
-        )
+        await self._async_set_mode(ArmMode.UNSET)
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
-        """Send part-set A (arm home) command."""
-        await async_run_command(
-            self._hub.panel.area(self._area_id).set_a(),
-            "arming this area in home mode",
-            engineer_mode_possible=True,
-        )
+        await self._async_set_mode(ArmMode.PART_A)
 
     async def async_alarm_arm_night(self, code: str | None = None) -> None:
-        """Send part-set B (arm night) command."""
-        await async_run_command(
-            self._hub.panel.area(self._area_id).set_b(),
-            "arming this area in night mode",
-            engineer_mode_possible=True,
-        )
+        await self._async_set_mode(ArmMode.PART_B)
 
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
-        """Send full-set (arm away) command."""
-        await async_run_command(
-            self._hub.panel.area(self._area_id).set(),
-            "arming this area away",
-            engineer_mode_possible=True,
-        )
+        await self._async_set_mode(ArmMode.FULL)

@@ -8,14 +8,13 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from spcedp import ZoneType
 from spcedp.panel import Zone
 
 from .const import SIGNAL_NEW_ZONES, SIGNAL_UPDATE_ZONE
-from .entity import SpcEdpEntity, hub_device_info
+from .entity import SpcEdpEntity
 from .hub import SpcEdpHub
 
 # This remains an adapter concern: Home Assistant's entity device classes are
@@ -91,9 +90,8 @@ class SpcEdpZoneBinarySensor(SpcEdpEntity, BinarySensorEntity):
         return zone.name if zone and zone.name else f"Zone {self._zone_id}"
 
     @property
-    def device_info(self) -> DeviceInfo:
-        """Zones share the single panel device; there is no separate sub-device."""
-        return hub_device_info(self._hub)
+    def available(self) -> bool:
+        return super().available and self._zone is not None
 
     @property
     def device_class(self) -> BinarySensorDeviceClass | None:
@@ -120,10 +118,6 @@ class SpcEdpZoneBinarySensor(SpcEdpEntity, BinarySensorEntity):
             async_dispatcher_connect(
                 self.hass,
                 SIGNAL_UPDATE_ZONE.format(self._hub.entry.entry_id, self._zone_id),
-                self._handle_zone_update,
+                self.async_write_ha_state,
             )
         )
-
-    @callback
-    def _handle_zone_update(self) -> None:
-        self.async_write_ha_state()

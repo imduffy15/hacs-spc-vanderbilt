@@ -43,6 +43,10 @@ class SpcEdpEntity(Entity):
         """Entities are unavailable whenever the panel is not connected."""
         return self._hub.available
 
+    @property
+    def device_info(self) -> DeviceInfo:
+        return hub_device_info(self._hub)
+
     async def async_added_to_hass(self) -> None:
         """Subscribe to availability changes once added to hass."""
         self.async_on_remove(

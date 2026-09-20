@@ -9,8 +9,8 @@
   "iot_class": "local_push",
   "integration_type": "hub",
   "requirements": [
-    "spcedp @ git+https://github.com/imduffy15/spcedp.git@7342f0f7539563a5a658141dbca5a48343b8db8c"
+    "spcedp @ git+https://github.com/imduffy15/spcedp.git@0f86479f6956f8d5b7504d7f234a56a09bd598df"
   ],
   "single_config_entry": false,
-  "version": "0.3.1"
+  "version": "0.4.0"
 }

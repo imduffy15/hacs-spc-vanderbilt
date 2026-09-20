@@ -80,7 +80,7 @@ async def _async_test_bind(bind: str, port: int) -> None:
     confirm the panel will actually dial in, since that depends on the
     panel's own EDP configuration and network path.
     """
-    server = await asyncio.start_server(lambda r, w: None, bind, port)
+    server = await asyncio.start_server(lambda r, w: w.close(), bind, port)
     server.close()
     await server.wait_closed()
 
@@ -90,23 +90,27 @@ class SpcEdpConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 3
 
-    async def _async_validate(self, user_input: dict[str, Any]) -> dict[str, str]:
+    async def _async_validate(
+        self, user_input: dict[str, Any], *, test_bind: bool = True
+    ) -> dict[str, str]:
         """Validate user input, returning a dict of field -> error code."""
         errors: dict[str, str] = {}
 
         receiver_id = int(user_input[CONF_RECEIVER_ID])
-        if not (MIN_RECEIVER_ID <= receiver_id <= MAX_RECEIVER_ID):
+        if receiver_id != user_input[CONF_RECEIVER_ID] or not (
+            MIN_RECEIVER_ID <= receiver_id <= MAX_RECEIVER_ID
+        ):
             errors[CONF_RECEIVER_ID] = "invalid_receiver_id"
 
         port = int(user_input[CONF_PORT])
-        if not (MIN_PORT <= port <= MAX_PORT):
+        if port != user_input[CONF_PORT] or not (MIN_PORT <= port <= MAX_PORT):
             errors[CONF_PORT] = "invalid_port"
 
         key = (user_input.get(CONF_ENCRYPTION_KEY) or "").strip()
         if key and not _HEX_KEY_RE.match(key):
             errors[CONF_ENCRYPTION_KEY] = "invalid_encryption_key"
 
-        if not errors:
+        if not errors and test_bind:
             try:
                 await _async_test_bind(user_input[CONF_BIND], port)
             except OSError:
@@ -148,17 +152,16 @@ class SpcEdpConfigFlow(ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
         errors: dict[str, str] = {}
         if user_input is not None:
-            errors = await self._async_validate(user_input)
-            new_unique_id = f"{user_input[CONF_BIND]}:{int(user_input[CONF_PORT])}"
-            if not errors and new_unique_id != entry.unique_id:
-                await self.async_set_unique_id(new_unique_id)
-                self._abort_if_unique_id_configured()
+            same_listener = all(
+                user_input[key] == entry.data[key] for key in (CONF_BIND, CONF_PORT)
+            )
+            errors = await self._async_validate(user_input, test_bind=not same_listener)
             if not errors:
                 key = (user_input.get(CONF_ENCRYPTION_KEY) or "").strip() or None
                 return self.async_update_reload_and_abort(
                     entry,
-                    title=f"SPC Panel ({user_input[CONF_BIND]}:{int(user_input[CONF_PORT])})",
                     data={
+                        **entry.data,
                         CONF_RECEIVER_ID: int(user_input[CONF_RECEIVER_ID]),
                         CONF_BIND: user_input[CONF_BIND],
                         CONF_PORT: int(user_input[CONF_PORT]),

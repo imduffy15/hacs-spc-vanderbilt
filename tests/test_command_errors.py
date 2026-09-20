@@ -49,3 +49,13 @@ async def test_command_wrapper_raises_home_assistant_error() -> None:
 
     with pytest.raises(HomeAssistantError, match="EDP receiver"):
         await async_run_command(reject(), "testing the command")
+
+
+async def test_transport_failure_is_a_home_assistant_error() -> None:
+    from spcedp import SpcTimeout
+
+    async def timeout():
+        raise SpcTimeout("no reply")
+
+    with pytest.raises(HomeAssistantError, match="no reply"):
+        await async_run_command(timeout(), "arming this area")
