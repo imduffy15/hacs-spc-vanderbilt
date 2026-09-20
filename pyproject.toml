@@ -1,6 +1,6 @@
 [project]
 name = "hacs-spc-vanderbilt"
-version = "1.0.0rc1"
+version = "1.0.0rc2"
 description = "Vanderbilt SPC sensors and alarm controls for Home Assistant"
 requires-python = ">=3.14.2"
 dependencies = [

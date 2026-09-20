@@ -1189,7 +1189,7 @@ wheels = [
 
 [[package]]
 name = "hacs-spc-vanderbilt"
-version = "1.0.0rc1"
+version = "1.0.0rc2"
 source = { virtual = "." }
 dependencies = [
     { name = "spcedp" },

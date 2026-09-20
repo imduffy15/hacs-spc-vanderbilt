@@ -24,8 +24,6 @@ def make_hub(hass):
 
 async def test_initial_read_failure_releases_session_for_retry(hass):
     hub = make_hub(hass)
-    # The registry's hardware identity is not the EDP frame's source address.
-    hub.entry.data["panel_id"] = "physical-panel-id"
     session = MagicMock()
     with patch(
         "custom_components.spc_edp.hub.Panel.from_session",

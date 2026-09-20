@@ -90,14 +90,12 @@ async def test_user_flow_rejects_unbindable_address(hass: HomeAssistant) -> None
 async def test_reconfigure_active_listener_preserves_panel_identity(hass) -> None:
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    from custom_components.spc_edp.const import CONF_PANEL_ID
-
     entry = MockConfigEntry(
         domain=DOMAIN,
         version=3,
         unique_id="12345",
         title="SPC4300",
-        data={**_VALID_INPUT, CONF_PANEL_ID: "12345"},
+        data=_VALID_INPUT,
     )
     entry.add_to_hass(hass)
     result = await hass.config_entries.flow.async_init(
@@ -119,7 +117,6 @@ async def test_reconfigure_active_listener_preserves_panel_identity(hass) -> Non
     assert result["reason"] == "reconfigure_successful"
     bind.assert_not_called()
     assert entry.unique_id == "12345"
-    assert entry.data[CONF_PANEL_ID] == "12345"
     assert entry.data[CONF_RECEIVER_ID] == 1002
 
 

@@ -10,7 +10,6 @@ CONF_RECEIVER_ID = "receiver_id"
 CONF_BIND = "bind"
 CONF_PORT = "port"
 CONF_ENCRYPTION_KEY = "encryption_key"
-CONF_PANEL_ID = "panel_id"
 
 # --- Config entry option keys (tunable after setup) -------------------------
 CONF_IDLE_TIMEOUT = "idle_timeout"

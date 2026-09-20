@@ -20,7 +20,6 @@ from .const import (
     CONF_BIND,
     CONF_ENCRYPTION_KEY,
     CONF_IDLE_TIMEOUT,
-    CONF_PANEL_ID,
     CONF_PORT,
     CONF_RECEIVER_ID,
     DEFAULT_AREA_REFRESH_INTERVAL,
@@ -84,10 +83,8 @@ class SpcEdpHub:
 
     @property
     def unique_id(self) -> str:
-        """Stable physical-panel identity, with an old-entry fallback."""
-        return str(
-            self.entry.data.get(CONF_PANEL_ID) or self.entry.unique_id or f"{self.bind}:{self.port}"
-        )
+        """Stable identity for this configured panel."""
+        return self.entry.unique_id or self.entry.entry_id
 
     async def async_start(self) -> None:
         """Open the EDP listen socket. Raises ConfigEntryNotReady on failure."""
