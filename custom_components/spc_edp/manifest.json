@@ -1,15 +1,17 @@
 {
   "domain": "spc_edp",
   "name": "Vanderbilt SPC (EDP)",
-  "codeowners": ["@imduffy15"],
+  "codeowners": [
+    "@imduffy15"
+  ],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/imduffy15/hacs-spc-vanderbilt",
-  "issue_tracker": "https://github.com/imduffy15/hacs-spc-vanderbilt/issues",
-  "iot_class": "local_push",
   "integration_type": "hub",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/imduffy15/hacs-spc-vanderbilt/issues",
   "requirements": [
-    "spcedp @ git+https://github.com/imduffy15/spcedp.git@0f86479f6956f8d5b7504d7f234a56a09bd598df"
+    "spcedp@git+https://github.com/imduffy15/spcedp.git@0f86479f6956f8d5b7504d7f234a56a09bd598df"
   ],
   "single_config_entry": false,
   "version": "0.4.0"
