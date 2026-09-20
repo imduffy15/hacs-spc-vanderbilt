@@ -117,11 +117,8 @@ class SpcEdpHub:
 
     async def _on_session(self, session: Session) -> None:
         """Keep one connected panel, allowing retry after any setup failure."""
-        expected_id = self.entry.data.get(CONF_PANEL_ID)
-        if self._session is not None or (
-            expected_id is not None and str(session.panel_id) != str(expected_id)
-        ):
-            _LOGGER.warning("Rejecting an unexpected or duplicate panel connection")
+        if self._session is not None:
+            _LOGGER.warning("Rejecting a duplicate panel connection")
             session.request_teardown()
             return
         self._session = session
