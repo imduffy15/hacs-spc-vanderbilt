@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
-
 DOMAIN = "spc_edp"
 MANUFACTURER = "Vanderbilt (Siemens)"
 
-# --- Config entry data keys (immutable, set once via config flow) ----------
+# Config entry data
 CONF_RECEIVER_ID = "receiver_id"
 CONF_BIND = "bind"
 CONF_PORT = "port"
@@ -28,10 +26,8 @@ DEFAULT_AREA_REFRESH_INTERVAL = 30  # seconds; reconciles event drift/fallback
 
 MIN_PORT = 1
 MAX_PORT = 65535
-MIN_RECEIVER_ID = 0
-MAX_RECEIVER_ID = 65535
-
-AREA_REFRESH_INTERVAL = timedelta(seconds=DEFAULT_AREA_REFRESH_INTERVAL)
+MIN_RECEIVER_ID = 1
+MAX_RECEIVER_ID = 999997
 
 # --- Dispatcher signals ------------------------------------------------------
 SIGNAL_AVAILABILITY = "spc_edp_availability_{}"

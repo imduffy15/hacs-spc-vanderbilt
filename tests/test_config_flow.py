@@ -136,3 +136,27 @@ async def test_fractional_identifiers_are_rejected(hass, field) -> None:
         result["flow_id"], {**_VALID_INPUT, field: 1001.5}
     )
     assert field in result["errors"]
+
+
+@pytest.mark.parametrize("receiver_id", [1, 65536, 999997])
+async def test_receiver_id_accepts_panels_full_range(hass, receiver_id) -> None:
+    from custom_components.spc_edp.config_flow import SpcEdpConfigFlow
+
+    flow = SpcEdpConfigFlow()
+    errors = await flow._async_validate(
+        {**_VALID_INPUT, CONF_RECEIVER_ID: receiver_id}, test_bind=False
+    )
+    assert not errors
+
+
+@pytest.mark.parametrize("receiver_id", [0, -1, 999998, 999999])
+async def test_receiver_id_rejects_reserved_and_out_of_range_values(
+    hass, receiver_id
+) -> None:
+    from custom_components.spc_edp.config_flow import SpcEdpConfigFlow
+
+    flow = SpcEdpConfigFlow()
+    errors = await flow._async_validate(
+        {**_VALID_INPUT, CONF_RECEIVER_ID: receiver_id}, test_bind=False
+    )
+    assert errors == {CONF_RECEIVER_ID: "invalid_receiver_id"}

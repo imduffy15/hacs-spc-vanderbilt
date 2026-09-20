@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Connect to your Vanderbilt SPC panel",
-        "description": "The panel dials in to Home Assistant over the EDP protocol; it does not work the other way around. Configure the panel under Communications \u2192 Reporting \u2192 EDP to point at this host, using the receiver id and port below.",
+        "description": "Enable EDP in the panel’s global settings, then add a receiver pointing to this Home Assistant host. Use that receiver’s ID, TCP port and encryption key below.",
         "data": {
           "receiver_id": "Receiver ID",
           "port": "Listen port",
@@ -11,26 +11,32 @@
           "encryption_key": "EDP encryption key (32 hex digits, optional)"
         },
         "data_description": {
-          "receiver_id": "Must match the Receiver ID configured on the panel's EDP entry.",
-          "port": "The TCP port Home Assistant will listen on for the panel to dial in to.",
-          "bind": "The local address to bind the listener to. Use 0.0.0.0 to accept connections on any interface.",
+          "receiver_id": "Identifies Home Assistant’s receiver entry on the panel (1–999997). The separate EDP Panel ID identifies the alarm panel.",
+          "port": "Match Receiver IP Port in the panel’s receiver entry (default 50000).",
+          "bind": "Home Assistant’s local listen address. Keep 0.0.0.0 to listen on all interfaces.",
           "encryption_key": "Leave blank if EDP encryption is disabled on the panel."
         }
       },
       "reconfigure": {
         "title": "Update your Vanderbilt SPC panel connection",
-        "description": "Changing the port or bind address will restart the listener; the panel must already be configured to redial the new address.",
+        "description": "Update the matching receiver entry on the panel when changing these settings. Home Assistant restarts its listener after saving.",
         "data": {
           "receiver_id": "Receiver ID",
           "port": "Listen port",
           "bind": "Bind address",
           "encryption_key": "EDP encryption key (32 hex digits, optional)"
+        },
+        "data_description": {
+          "receiver_id": "Identifies Home Assistant’s receiver entry on the panel (1–999997). The separate EDP Panel ID identifies the alarm panel.",
+          "port": "Match Receiver IP Port in the panel’s receiver entry (default 50000).",
+          "bind": "Home Assistant’s local listen address. Keep 0.0.0.0 to listen on all interfaces.",
+          "encryption_key": "Leave blank if EDP encryption is disabled on the panel."
         }
       }
     },
     "error": {
-      "invalid_receiver_id": "Receiver ID must be a whole number between 0 and 65535.",
-      "invalid_port": "Port must be between 1 and 65535.",
+      "invalid_receiver_id": "Receiver ID must be a whole number between 1 and 999997.",
+      "invalid_port": "Port must be a whole number between 1 and 65535.",
       "invalid_encryption_key": "The encryption key must be exactly 32 hex digits (16 bytes), or left blank.",
       "cannot_bind": "Could not bind to that address and port. It may already be in use."
     },

@@ -12,17 +12,59 @@ or cloud service is needed. Requires Python 3.14 or newer.
 2. Open **Settings → Devices & services → Add integration → Vanderbilt SPC (EDP)**.
 3. Enter the receiver ID, TCP port (default `50000`), bind address (default
    `0.0.0.0`), and optional 32-hex-digit AES key.
-4. In the panel's **Communications → Reporting → EDP**, configure:
-   - The same receiver ID, port and encryption key.
-   - Home Assistant's reachable IP as the receiver address.
-   - EDP version **2**, **TCP/IP**, **Network** and **Commands** enabled.
-   - **Always connected**, **Panel master**, **Primary receiver** and
-     **Verification** enabled, live streaming always available, polling **10 seconds**.
 
-For a container installation, expose the TCP port on the host or use host
-networking. Setup checks that Home Assistant can listen; entities appear
-when the panel connects. Keep EDP on a trusted network: its optional AES
-mode does not authenticate messages.
+For containers, expose the listen port over TCP or use host networking.
+Keep EDP on a trusted network: its optional AES mode does not authenticate messages.
+
+## Panel setup
+
+In the panel's web interface, open **Communications → Reporting → EDP**.
+
+**1. Open Settings to enable EDP globally.** These are reference values from
+a working SPC4300's **EDP Settings (Panel)** screen:
+
+| Setting | Value |
+| --- | --- |
+| Enable | Checked |
+| EDP Panel ID | Keep your panel's existing ID; example `1000` |
+| Panel Port | `50000` |
+| Packet Size Limit | `1440` |
+| Event Timeout / Retry Count | `10` seconds / `10` retries |
+
+Save, then go **Back**. The panel ID identifies the alarm panel; the receiver
+ID identifies Home Assistant. The **Panel Port** belongs to the panel;
+Home Assistant's listen port is configured in the receiver entry below.
+Modem dial settings can stay as they are for this TCP connection.
+**Event Logging Options** control the panel's log; command permission and
+reported events are configured separately below.
+
+**2. Add or edit a receiver for Home Assistant.**
+
+| Receiver setting | Value |
+| --- | --- |
+| Receiver ID | Match Home Assistant; example `1001` |
+| Protocol Version | Version 2 |
+| Commands Enable / Network Enable | Checked |
+| Network Protocol | TCP/IP |
+| Receiver IP Address | Home Assistant host's LAN IP |
+| Receiver IP Port | Home Assistant's listen port; default `50000` |
+| Always Connected / Primary Receiver | Checked |
+| Polling Interval | `10` seconds |
+| Encryption | Match Home Assistant; use the same 32-hex-digit key if enabled |
+
+**3. Open Event Filter.** Enable **Zone state**, **Settings**, **Alarms** and
+**Confirmed Alarms**, and select the areas you want to monitor. Save the
+receiver and exit engineer mode so remote arming is allowed.
+
+Audio/video streaming, verification and virtual-keypad access are unused.
+Panel Master applies to UDP. See [Vanderbilt's EDP setup reference](https://doc.vanderbiltindustries.com/docs/Intrusion/SPC/SPCPanel/v_3.11/InstallAndConfig_OLH/EN/Content/Topics/EDP_Setup.htm)
+for the panel's other settings.
+
+Setup succeeds when Home Assistant can listen. Once the panel connects,
+the alarm area and zone sensors appear. Open a door to check its sensor:
+it updates immediately with zone reporting enabled, or within the refresh
+interval. If entities remain unavailable, check the receiver address, exposed
+TCP port and encryption key.
 
 ## Use
 

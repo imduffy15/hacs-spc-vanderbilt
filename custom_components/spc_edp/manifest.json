@@ -14,5 +14,5 @@
     "spcedp@git+https://github.com/imduffy15/spcedp.git@0f86479f6956f8d5b7504d7f234a56a09bd598df"
   ],
   "single_config_entry": false,
-  "version": "0.4.0"
+  "version": "0.4.1"
 }
