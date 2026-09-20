@@ -37,6 +37,23 @@ def _panel_id_from_serial(serial_number: str | None) -> str | None:
         return None
 
 
+def _remove_obsolete_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove entities outside the supported alarm-control/zone surface."""
+    entity_registry = er.async_get(hass)
+    for entity in list(entity_registry.entities.values()):
+        if entity.config_entry_id != entry.entry_id:
+            continue
+        domain = entity.entity_id.partition(".")[0]
+        _, marker, zone_id = entity.unique_id.rpartition("-zone-")
+        is_zone = (
+            domain == Platform.BINARY_SENSOR.value
+            and bool(marker)
+            and zone_id.isdigit()
+        )
+        if domain != Platform.ALARM_CONTROL_PANEL.value and not is_zone:
+            entity_registry.async_remove(entity.entity_id)
+
+
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate address-based identifiers to the immutable panel device id.
 
@@ -66,19 +83,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass.config_entries.async_update_entry(entry, version=2)
 
     if entry.version < 3:
-        entity_registry = er.async_get(hass)
-        for entity in list(entity_registry.entities.values()):
-            if entity.config_entry_id != entry.entry_id:
-                continue
-            domain = entity.entity_id.partition(".")[0]
-            _, marker, zone_id = entity.unique_id.rpartition("-zone-")
-            is_zone = (
-                domain == Platform.BINARY_SENSOR.value
-                and bool(marker)
-                and zone_id.isdigit()
-            )
-            if domain != Platform.ALARM_CONTROL_PANEL.value and not is_zone:
-                entity_registry.async_remove(entity.entity_id)
+        _remove_obsolete_entities(hass, entry)
         hass.config_entries.async_update_entry(entry, version=3)
     return True
 
@@ -118,6 +123,10 @@ async def _async_migrate_registry_identity(
 
 async def async_setup_entry(hass: HomeAssistant, entry: SpcEdpConfigEntry) -> bool:
     """Set up Vanderbilt SPC (EDP) from a config entry."""
+    # Run on every setup as well as migration. This cleans registry records
+    # created by pre-0.3 releases even if another Home Assistant process (for
+    # example config validation) advanced the config-entry version first.
+    _remove_obsolete_entities(hass, entry)
     await _async_migrate_registry_identity(hass, entry)
     hub = SpcEdpHub(hass, entry)
     await hub.async_start()
