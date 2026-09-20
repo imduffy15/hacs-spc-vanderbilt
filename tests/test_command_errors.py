@@ -18,10 +18,10 @@ from custom_components.spc_edp.commands import _rejection_message, async_run_com
         (ReplyCode.PANEL_ENGINEER, "full engineer mode"),
         (ReplyCode.NOT_POSSIBLE_NOW, "current state"),
         (ReplyCode.NOT_PERMITTED, "EDP receiver"),
-        (ReplyCode.NOT_IMPLEMENTED_PANEL, "panel command channel"),
+        (0xFD, "Check open zones"),
     ],
 )
-def test_known_reply_codes_have_actionable_messages(code: ReplyCode, expected: str) -> None:
+def test_known_reply_codes_have_actionable_messages(code: int, expected: str) -> None:
     """Each known panel rejection explains what the user can do next."""
     message = _rejection_message(PanelRejected(code), "testing the command")
     assert expected in message

@@ -1,10 +1,4 @@
-"""Shared handling for EDP control-command replies.
-
-SPC returns a single status byte for every binary/panel control command.  A
-number of firmwares overload ``0xFC`` for remote arm attempts while the panel
-is in engineer mode, so Home Assistant needs contextual messaging rather than
-surfacing the protocol's terse generic text.
-"""
+"""Translate panel rejections and connection failures into Home Assistant errors."""
 
 from __future__ import annotations
 
@@ -12,7 +6,7 @@ from collections.abc import Awaitable
 
 from homeassistant.exceptions import HomeAssistantError
 from spcedp import PanelRejected, SpcError
-from spcedp.errors import ReplyCode, reply_message
+from spcedp.errors import ReplyCode
 
 
 def _rejection_message(
@@ -43,9 +37,10 @@ def _rejection_message(
                 "it is in engineer mode; exit engineer mode at the panel and retry."
             )
         return f"The SPC panel firmware does not implement {action} (reply code 0xFC)."
-    if code == ReplyCode.NOT_IMPLEMENTED_PANEL:
-        return f"The SPC panel firmware does not implement {action} on its panel command channel."
-    return f"The SPC panel rejected {action}: {reply_message(code)} (reply code {code:#04x})."
+    return (
+        f"The SPC panel rejected {action} (reply code {code:#04x}). "
+        "Check open zones and the panel's status before retrying."
+    )
 
 
 async def async_run_command(

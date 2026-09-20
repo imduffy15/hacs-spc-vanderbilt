@@ -84,12 +84,6 @@ class SpcEdpAlarmControlPanel(SpcEdpEntity, AlarmControlPanelEntity):  # pylint:
         return super().available and self._area is not None
 
     @property
-    def changed_by(self) -> str | None:
-        """Return the user the last unset was triggered by."""
-        area = self._area
-        return area.last_unset_user_name if area else None
-
-    @property
     def alarm_state(self) -> AlarmControlPanelState | None:
         """Return the state of the area."""
         area = self._area

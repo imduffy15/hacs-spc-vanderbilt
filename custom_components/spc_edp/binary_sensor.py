@@ -99,11 +99,7 @@ class SpcEdpZoneBinarySensor(SpcEdpEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool | None:
-        """Whether the zone is currently open/active.
-
-        The protocol SDK resolves the physical ``INPUT`` value, including its
-        safe fallback for older or unexpected panel replies.
-        """
+        """Whether the zone's physical input is open/active."""
         zone = self._zone
         if zone is None:
             return None

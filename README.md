@@ -17,15 +17,12 @@ is pending before v1 general availability.
 
 1. Add `https://github.com/imduffy15/hacs-spc-vanderbilt` as a HACS custom
    repository (category **Integration**), install, and restart Home Assistant.
-   For `v1.0.0rc2`, enable **Show beta versions** in the repository menu and select
+   For `v1.0.0rc3`, enable **Show beta versions** in the repository menu and select
    that release when downloading.
    For manual installation, copy `custom_components/spc_edp` into `/config/custom_components`.
 2. Open **Settings → Devices & services → Add integration → Vanderbilt SPC (EDP)**.
 3. Enter the receiver ID, TCP port (default `50000`), bind address (default
    `0.0.0.0`), and optional 32-hex-digit AES key.
-
-Legacy configurations are not migrated; remove and re-add the integration if
-Home Assistant cannot load an older entry.
 
 For containers, expose the listen port over TCP or use host networking.
 Keep EDP on a trusted network: its optional AES mode does not authenticate messages.

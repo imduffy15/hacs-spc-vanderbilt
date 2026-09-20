@@ -1189,7 +1189,7 @@ wheels = [
 
 [[package]]
 name = "hacs-spc-vanderbilt"
-version = "1.0.0rc2"
+version = "1.0.0rc3"
 source = { virtual = "." }
 dependencies = [
     { name = "spcedp" },
@@ -1205,7 +1205,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "spcedp", git = "https://github.com/imduffy15/spcedp.git?rev=88942f12d6450d70e2d448afc4f4ebfc2f983795" }]
+requires-dist = [{ name = "spcedp", git = "https://github.com/imduffy15/spcedp.git?rev=38020865573b83ef82635ff555b82c464af76f10" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2781,8 +2781,8 @@ wheels = [
 
 [[package]]
 name = "spcedp"
-version = "2.0.1"
-source = { git = "https://github.com/imduffy15/spcedp.git?rev=88942f12d6450d70e2d448afc4f4ebfc2f983795#88942f12d6450d70e2d448afc4f4ebfc2f983795" }
+version = "3.0.0"
+source = { git = "https://github.com/imduffy15/spcedp.git?rev=38020865573b83ef82635ff555b82c464af76f10#38020865573b83ef82635ff555b82c464af76f10" }
 dependencies = [
     { name = "cryptography" },
 ]
