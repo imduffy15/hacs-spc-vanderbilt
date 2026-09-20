@@ -4,10 +4,21 @@ Local zone sensors and alarm controls for Vanderbilt/Siemens SPC panels.
 The panel connects directly to Home Assistant over EDP v2; no web gateway
 or cloud service is needed. Requires Home Assistant 2026.9.3 or newer (Python 3.14.2+).
 
+## Support
+
+Release candidate: live-tested on **SPC4300 firmware 3.15.0**, one area,
+15 zones, unencrypted EDP TCP, and Home Assistant **2026.9.3**. Home, night
+and away arming/disarming have been exercised with live sensor updates.
+Encrypted connections and multiple areas are covered by simulated-panel tests;
+they and other models/firmware still need field validation. Longer observation
+is pending before v1 general availability.
+
 ## Install
 
 1. Add `https://github.com/imduffy15/hacs-spc-vanderbilt` as a HACS custom
    repository (category **Integration**), install, and restart Home Assistant.
+   For `v1.0.0rc1`, enable **Show beta versions** in the repository menu and select
+   that release when downloading.
    For manual installation, copy `custom_components/spc_edp` into `/config/custom_components`.
 2. Open **Settings → Devices & services → Add integration → Vanderbilt SPC (EDP)**.
 3. Enter the receiver ID, TCP port (default `50000`), bind address (default

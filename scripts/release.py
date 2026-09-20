@@ -81,7 +81,16 @@ def main() -> None:
         if head != tagged:
             raise ValueError("Release tag does not point to this checkout")
         subprocess.run(
-            ["gh", "release", "create", tag, str(ARCHIVE), "--verify-tag", "--generate-notes"],
+            [
+                "gh",
+                "release",
+                "create",
+                tag,
+                str(ARCHIVE),
+                "--verify-tag",
+                "--generate-notes",
+                *(["--prerelease"] if "rc" in tag else []),
+            ],
             cwd=ROOT,
             check=True,
         )

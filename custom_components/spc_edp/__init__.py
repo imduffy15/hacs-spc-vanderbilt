@@ -54,14 +54,15 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if entry.version < 2:
         old_identity = entry.unique_id or f"{entry.data['bind']}:{entry.data['port']}"
         device_registry = dr.async_get(hass)
-        device = device_registry.async_get_device(identifiers={(DOMAIN, old_identity)})
+        device = device_registry.async_get_device_by_identifier(
+            (DOMAIN, old_identity), entry.entry_id
+        )
         panel_id = _panel_id_from_serial(device.serial_number if device else None)
 
         if panel_id is not None:
             hass.config_entries.async_update_entry(
                 entry,
                 data={**entry.data, CONF_PANEL_ID: panel_id},
-                title="SPC4300",
                 unique_id=panel_id,
                 version=2,
             )
@@ -96,12 +97,11 @@ async def _async_migrate_registry_identity(hass: HomeAssistant, entry: ConfigEnt
             )
 
     device_registry = dr.async_get(hass)
-    device = device_registry.async_get_device(identifiers={(DOMAIN, old_identity)})
+    device = device_registry.async_get_device_by_identifier((DOMAIN, old_identity), entry.entry_id)
     if device is not None:
         device_registry.async_update_device(
             device.id,
             new_identifiers={(DOMAIN, panel_id)},
-            name="SPC4300",
         )
 
 
