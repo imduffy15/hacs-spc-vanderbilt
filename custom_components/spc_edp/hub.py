@@ -61,6 +61,7 @@ class SpcEdpHub:
         self._server: PanelServer | None = None
         self._aux_unsub: object | None = None
         self._area_unsub: object | None = None
+        self._refresh_lock = asyncio.Lock()
 
         self._known_area_ids: set[int] = set()
         self._known_zone_ids: set[int] = set()
@@ -194,7 +195,7 @@ class SpcEdpHub:
 
         try:
             async for event in panel.events():
-                self._handle_sia_event(panel, event)
+                await self._handle_sia_event(panel, event)
         except SpcError:
             _LOGGER.debug("SIA event stream ended", exc_info=True)
         finally:
@@ -244,9 +245,14 @@ class SpcEdpHub:
             async_dispatcher_send(self.hass, SIGNAL_NEW_DOORS.format(entry_id), new_doors)
 
     # ------------------------------------------------------------------ events
-    def _handle_sia_event(self, panel: Panel, event: SiaEvent) -> None:
-        """Reconcile the snapshot and notify entities for one pushed SIA event."""
-        update = panel.apply_event(event)
+    async def _handle_sia_event(self, panel: Panel, event: SiaEvent) -> None:
+        """Reconcile the snapshot and notify entities for one pushed SIA event.
+
+        Area-mode SIA messages are push notifications, but their payload is
+        not a complete state snapshot. ``spcedp`` immediately follows those
+        messages with an AREA_STATUS read, matching the behaviour of the old
+        web-gateway integration without waiting for the periodic safety poll.
+        """
         self.hass.bus.async_fire(
             EVENT_SIA,
             {
@@ -261,6 +267,18 @@ class SpcEdpHub:
                 "timestamp": event.timestamp.isoformat() if event.timestamp else None,
             },
         )
+
+        try:
+            async with self._refresh_lock:
+                update = await panel.reconcile_event(event)
+        except SpcError:
+            _LOGGER.warning(
+                "Immediate state reconciliation failed for SIA code %s; "
+                "the periodic refresh will retry",
+                event.sia_code,
+                exc_info=True,
+            )
+            update = panel.apply_event(event)
 
         entry_id = self.entry.entry_id
         for zone_id in update.zone_ids:
@@ -286,8 +304,9 @@ class SpcEdpHub:
         if panel is None or not self.available:
             return
         try:
-            await panel.refresh_outputs()
-            await panel.refresh_doors()
+            async with self._refresh_lock:
+                await panel.refresh_outputs()
+                await panel.refresh_doors()
         except SpcError:
             _LOGGER.debug("Auxiliary (output/door) refresh failed", exc_info=True)
             return
@@ -321,8 +340,9 @@ class SpcEdpHub:
         if panel is None or not self.available:
             return
         try:
-            await panel.refresh_areas()
-            await panel.refresh_zones()
+            async with self._refresh_lock:
+                await panel.refresh_areas()
+                await panel.refresh_zones()
         except SpcError:
             _LOGGER.debug("Area/zone reconciliation refresh failed", exc_info=True)
             return

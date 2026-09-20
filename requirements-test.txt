@@ -1,2 +1,2 @@
 pytest-homeassistant-custom-component
-spcedp @ git+https://github.com/imduffy15/spcedp.git@8a27b6668af8db1be3085ad4d662abcaa8598a0a
+spcedp @ git+https://github.com/imduffy15/spcedp.git@7342f0f7539563a5a658141dbca5a48343b8db8c
